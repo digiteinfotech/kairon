@@ -284,7 +284,8 @@ async def get_collection_metadata(
     """
     Fetches collection data of the bot
     """
-    return {"data": DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)}
+    metadata = DataProcessor.get_crud_metadata(bot=bot, collection_name=collection_name)
+    return {"data": {**metadata, "is_secure": DataProcessor.get_secure_fields(bot, collection_name)}}
 
 
 @router.get("/collection/{collection_name}", response_model=Response)

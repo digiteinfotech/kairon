@@ -1753,3 +1753,38 @@ class TestAgentActionIntegrationToken:
         assert re.match(patterns[0], f"/api/agents/{bot}/agent-uuid/run/sender/simple")
         assert not re.match(patterns[0], "/api/agents/other_bot/agent-uuid/run/sender/simple")
         assert not re.match(patterns[0], f"/api/bot/{bot}/chat/client/config")
+
+
+SECURE_BOT = "secure_fields_bot"
+SECURE_OTHER_BOT = "secure_fields_other_bot"
+
+
+@pytest.fixture
+def _clean_secure_collections():
+    from kairon.shared.cognition.data_objects import CollectionData
+    connect(**Utility.mongoengine_connection(Utility.environment['database']["url"]))
+    CollectionData.objects(bot__in=[SECURE_BOT, SECURE_OTHER_BOT]).delete()
+    yield
+    CollectionData.objects(bot__in=[SECURE_BOT, SECURE_OTHER_BOT]).delete()
+
+
+def _save_secure(collection_name, data, bot=SECURE_BOT, is_secure=None):
+    DataProcessor.save_bulk_collection_data(
+        [{"data": data, "is_secure": is_secure or [], "is_non_editable": []}],
+        user="secure_user", bot=bot, collection_name=collection_name,
+    )
+
+
+def test_get_secure_fields_union_across_records_sorted(_clean_secure_collections):
+    _save_secure("orders", {"token": "t", "pin": "1", "name": "x"}, is_secure=["token", "pin"])
+    _save_secure("orders", {"card": "c", "name": "y"}, is_secure=["card"])
+    _save_secure("orders", {"name": "z"})
+    _save_secure("other", {"secret": "s"}, is_secure=["secret"])
+    _save_secure("orders", {"token": "o"}, bot=SECURE_OTHER_BOT, is_secure=["token"])
+    assert DataProcessor.get_secure_fields(SECURE_BOT, "orders") == ["card", "pin", "token"]
+
+
+def test_get_secure_fields_no_secure_or_missing_collection(_clean_secure_collections):
+    _save_secure("orders", {"name": "x"})
+    assert DataProcessor.get_secure_fields(SECURE_BOT, "orders") == []
+    assert DataProcessor.get_secure_fields(SECURE_BOT, "nope") == []

@@ -105,6 +105,17 @@ class DataProcessor:
         return builder.to_schema()
 
     @staticmethod
+    def get_secure_fields(bot: Text, collection_name: Text) -> List[Text]:
+        """
+        fetches the keys marked as secure in any record of the collection
+
+        :param bot: bot id
+        :param collection_name: collection name
+        :return: sorted list of secure keys
+        """
+        return sorted(CollectionData.objects(bot=bot, collection_name=collection_name).distinct("is_secure"))
+
+    @staticmethod
     def save_collection_data(payload: Dict, user: Text, bot: Text):
         collection_name = payload.get("collection_name", None)
         data = payload.get('data')

@@ -12879,6 +12879,8 @@ def test_get_collection_metadata():
         'location': {'type': 'string'}
     }
     assert data['required'] == ['age', 'location', 'mobile_number', 'name']
+    assert isinstance(data['is_secure'], list)
+    assert data['is_secure'] == sorted(data['is_secure'])
 
     response = client.get(
         url=f"/api/bot/{pytest.bot}/data/collection/bank_details/metadata",
