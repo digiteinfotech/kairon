@@ -203,3 +203,35 @@ class TestKeenableSearchAction:
         log = ActionServerLogs.objects(bot=bot, action=action_name).get()
         assert log.type == ActionType.keenable_search_action.value
         assert log.status == STATUSES.SUCCESS.value
+
+    @pytest.mark.asyncio
+    async def test_execute_keenable_search_action_configured_search_term_empty_message(self, monkeypatch):
+        bot = 'test_keenable_execute_term'
+        action_name = 'keenable_execute_term_action'
+        Actions(name=action_name, type=ActionType.keenable_search_action.value, bot=bot, user='test_user').save()
+        KeenableSearchAction(name=action_name, bot=bot, user='test_user', num_results=1,
+                             search_term={'_cls': 'CustomActionRequestParameters', 'key': 'search_term',
+                                          'value': 'what is kanban', 'parameter_type': 'value'}).save()
+        captured = {}
+
+        def _perform(api_key, search_term, **kwargs):
+            captured.update({'search_term': search_term})
+            return [{'title': 'Kanban', 'text': 'Kanban visualizes work.',
+                     'link': 'https://www.digite.com/kanban/what-is-kanban/'}]
+
+        monkeypatch.setattr(ActionUtility, 'perform_keenable_search', _perform)
+        tracker = Tracker(sender_id='sender_keenable', slots={'bot': bot}, events=[],
+                          latest_message={'text': '', 'intent_ranking': [{'name': 'test_run'}]},
+                          paused=False, followup_action=None, active_loop=None,
+                          latest_action_name=None)
+        dispatcher = CollectingDispatcher()
+        await ActionKeenableSearch(bot, action_name).execute(dispatcher, tracker, {})
+        assert captured == {'search_term': 'what is kanban'}
+        assert 'what-is-kanban' in dispatcher.messages[0]['text']
+
+    def test_is_slot_in_keenable_search_action_config(self):
+        config = {'api_key': {'parameter_type': 'value', 'value': 'k'},
+                  'search_term': {'parameter_type': 'slot', 'value': 'query'}}
+        assert MongoProcessor.is_slot_in_keenable_search_action_config(config, 'query')
+        assert not MongoProcessor.is_slot_in_keenable_search_action_config(config, 'other')
+        assert MongoProcessor.is_slot_in_keenable_search_action_config({'set_slot': 'other'}, 'other')

@@ -303,7 +303,7 @@ class MongoProcessor:
             ActionType.slot_set_action.value: MongoProcessor.is_slot_in_slot_set_action_config,
             ActionType.email_action.value: MongoProcessor.is_slot_in_email_action_config,
             ActionType.google_search_action.value: MongoProcessor.is_slot_in_google_search_action_config,
-            ActionType.keenable_search_action.value: MongoProcessor.is_slot_in_google_search_action_config,
+            ActionType.keenable_search_action.value: MongoProcessor.is_slot_in_keenable_search_action_config,
             ActionType.zendesk_action.value: MongoProcessor.is_slot_in_zendesk_action_config,
             ActionType.jira_action.value: MongoProcessor.is_slot_in_jira_action_config,
             ActionType.pipedrive_leads_action.value: MongoProcessor.is_slot_in_pipedrive_leads_action_config,
@@ -457,6 +457,13 @@ class MongoProcessor:
             return True
 
         return False
+
+    @staticmethod
+    def is_slot_in_keenable_search_action_config(config: dict, slot: Text):
+        if MongoProcessor.is_slot_in_google_search_action_config(config, slot):
+            return True
+
+        return MongoProcessor.is_slot_in_field(config.get("search_term") or {}, slot)
 
     @staticmethod
     def is_slot_in_slot_set_action_config(config: dict, slot: Text):
@@ -5114,7 +5121,16 @@ class MongoProcessor:
                 bot=bot, status=True, set_slot=slot_name
             )
             keenable_search_action_with_slot = KeenableSearchAction.objects(
-                bot=bot, status=True, set_slot=slot_name
+                Q(set_slot=slot_name)
+                | (
+                    Q(search_term__parameter_type=ActionParameterType.slot.value)
+                    & Q(search_term__value=slot_name)
+                )
+                | (
+                    Q(api_key__parameter_type=ActionParameterType.slot.value)
+                    & Q(api_key__value=slot_name)
+                ),
+                bot=bot, status=True,
             )
             stories = Stories.objects(
                 bot=bot,
@@ -8011,6 +8027,10 @@ class MongoProcessor:
                 (
                         Q(api_key__parameter_type=ActionParameterType.key_vault.value)
                         & Q(api_key__value=key)
+                )
+                | (
+                        Q(search_term__parameter_type=ActionParameterType.key_vault.value)
+                        & Q(search_term__value=key)
                 ),
                 bot=bot,
                 status=True,

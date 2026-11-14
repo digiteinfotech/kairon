@@ -1,3 +1,4 @@
+import asyncio
 from typing import Text, Dict, Any
 
 from loguru import logger
@@ -76,8 +77,9 @@ class ActionKeenableSearch(ActionsBase):
                 search_term = latest_msg
             api_key = ActionUtility.retrieve_value_for_custom_action_parameter(tracker_data, api_key, self.bot) \
                 if api_key else None
-            if not ActionUtility.is_empty(latest_msg):
-                results = ActionUtility.perform_keenable_search(
+            if not ActionUtility.is_empty(search_term):
+                results = await asyncio.to_thread(
+                    ActionUtility.perform_keenable_search,
                     api_key, search_term,
                     num=action_config.get("num_results"), website=action_config.get("website")
                 )
