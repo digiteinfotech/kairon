@@ -35,6 +35,7 @@ class ActionType(str, Enum):
     form_validation_action = "form_validation_action"
     email_action = "email_action"
     google_search_action = "google_search_action"
+    keenable_search_action = "keenable_search_action"
     jira_action = "jira_action"
     zendesk_action = "zendesk_action"
     pipedrive_leads_action = "pipedrive_leads_action"

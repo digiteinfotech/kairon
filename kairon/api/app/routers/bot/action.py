@@ -7,6 +7,7 @@ from kairon.shared.auth import Authentication
 from kairon.api.models import (
     Response,
     HttpActionConfigRequest, SlotSetActionRequest, EmailActionRequest, GoogleSearchActionRequest, JiraActionRequest,
+    KeenableSearchActionRequest,
     ZendeskActionRequest, PipedriveActionRequest, HubspotFormsActionRequest, TwoStageFallbackConfigRequest,
     RazorpayActionRequest, PromptActionConfigRequest, DatabaseActionRequest, PyscriptActionRequest,
     WebSearchActionRequest, LiveAgentActionRequest, CallbackConfigRequest, CallbackActionConfigRequest,
@@ -252,6 +253,45 @@ async def update_google_search_action(
     Updates the google search action configuration.
     """
     mongo_processor.edit_google_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(message='Action updated')
+
+
+@router.post("/keenablesearch", response_model=Response)
+async def add_keenable_search_action(
+        request_data: KeenableSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Stores the Keenable search action config.
+    """
+    action_id = mongo_processor.add_keenable_search_action(
+        request_data.dict(), current_user.get_bot(), current_user.get_user()
+    )
+    return Response(data=action_id, message='Action added')
+
+
+@router.get("/keenablesearch", response_model=Response)
+async def list_keenable_search_actions(
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=TESTER_ACCESS)
+):
+    """
+    Returns list of Keenable search actions for bot.
+    """
+    actions = list(mongo_processor.list_keenable_search_actions(bot=current_user.get_bot()))
+    return Response(data=actions)
+
+
+@router.put("/keenablesearch", response_model=Response)
+async def update_keenable_search_action(
+        request_data: KeenableSearchActionRequest,
+        current_user: User = Security(Authentication.get_current_user_and_bot, scopes=DESIGNER_ACCESS)
+):
+    """
+    Updates the Keenable search action configuration.
+    """
+    mongo_processor.edit_keenable_search_action(
         request_data.dict(), current_user.get_bot(), current_user.get_user()
     )
     return Response(message='Action updated')

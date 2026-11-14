@@ -10816,7 +10816,7 @@ class TestMongoProcessor:
                         assert not DeepDiff(non_event_validation_summary['summary'], {
                             'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
                             'email_action': [],
-                            'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+                            'google_search_action': [], 'keenable_search_action': [], 'jira_action': [], 'zendesk_action': [],
                             'pipedrive_leads_action': [], 'prompt_action': [], 'razorpay_action': [],
                             'pyscript_action': [], 'database_action': [], 'callback_action': [], 'callbackconfig': [],
                             'two_stage_fallback': [], 'schedule_action': [], 'web_search_action': [], 'live_agent_action': [],
@@ -16345,7 +16345,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("test_without_http")
         assert actions == {
             'utterances': [], 'http_action': [], 'slot_set_action': [], 'form_validation_action': [],
-            'email_action': [], 'google_search_action': [], 'jira_action': [], 'zendesk_action': [],
+            'email_action': [], 'google_search_action': [], 'keenable_search_action': [], 'jira_action': [], 'zendesk_action': [],
             'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'actions': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],
@@ -16370,7 +16370,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("test_with_action")
         assert actions == {
             'actions': ['action_check'], 'utterances': [], 'http_action': [], 'slot_set_action': [],
-            'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'jira_action': [],
+            'form_validation_action': [], 'email_action': [], 'google_search_action': [], 'keenable_search_action': [], 'jira_action': [],
             'zendesk_action': [], 'pipedrive_leads_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
             'kairon_bot_response': [], 'razorpay_action': [], 'prompt_action': [], 'database_action': [],
             'pyscript_action': [], 'voice_call_action': [], 'web_search_action': [], 'live_agent_action': [], 'callback_action': [], 'schedule_action': [],
@@ -16394,7 +16394,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert not DeepDiff(actions, {'actions': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                                       'hubspot_forms_action': [],
-                                      'http_action': ['my_http_action'], 'google_search_action': [], 'jira_action': [],
+                                      'http_action': ['my_http_action'], 'google_search_action': [], 'keenable_search_action': [], 'jira_action': [],
                                       'two_stage_fallback': [],
                                       'slot_set_action': [], 'email_action': [], 'form_validation_action': [],
                                       'kairon_bot_response': [],
@@ -18288,7 +18288,7 @@ class TestMongoProcessor:
         processor.add_action("reset_slot", "test_upload_and_save", "test_user")
         actions = processor.list_actions("test_upload_and_save")
         assert not DeepDiff(actions, {
-            'actions': ['reset_slot'], 'google_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
+            'actions': ['reset_slot'], 'google_search_action': [], 'keenable_search_action': [], 'jira_action': [], 'pipedrive_leads_action': [],
             'http_action': ['action_performanceUser1000@digite.com'], 'zendesk_action': [], 'slot_set_action': [],
             'hubspot_forms_action': [], 'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
             'email_action': [], 'form_validation_action': [], 'prompt_action': [], 'database_action': [],
@@ -18399,7 +18399,7 @@ class TestMongoProcessor:
         actions = processor.list_actions("tests")
         assert not DeepDiff(actions, {
             'actions': [], 'zendesk_action': [], 'hubspot_forms_action': [], 'two_stage_fallback': [],
-            'http_action': ['my_http_action'], 'google_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
+            'http_action': ['my_http_action'], 'google_search_action': [], 'keenable_search_action': [], 'pipedrive_leads_action': [], 'kairon_bot_response': [],
             'razorpay_action': [], 'prompt_action': ['gpt_llm_faq'],
             'slot_set_action': [], 'email_action': [], 'form_validation_action': [], 'jira_action': [],
             'database_action': [], 'pyscript_action': [], 'web_search_action': [], 'live_agent_action': [],

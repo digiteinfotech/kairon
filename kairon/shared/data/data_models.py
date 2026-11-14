@@ -929,6 +929,23 @@ class GoogleSearchActionRequest(BaseModel):
         return v
 
 
+class KeenableSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    api_key: CustomActionParameter = None
+    search_term: CustomActionParameter = None
+    website: str = None
+    failure_response: str = "I have failed to process your request."
+    num_results: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
+
+    @validator("num_results")
+    def validate_num_results(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("num_results must be greater than or equal to 1!")
+        return v
+
+
 class WebSearchActionRequest(BaseModel):
     name: constr(to_lower=True, strip_whitespace=True)
     website: str = None
