@@ -28,7 +28,8 @@ from .models import ActionParameterType, HttpRequestContentType, EvaluationType,
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE
+from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE, KEENABLE_SEARCH_PUBLIC_URL, KEENABLE_SEARCH_URL, \
+    KEENABLE_SEARCH_TIMEOUT
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -561,6 +562,43 @@ class ActionUtility:
                 search_results = service.cse().list(q=search_term, cx=search_engine_id, **kwargs).execute()
                 for item in search_results.get('items') or []:
                     results.append({'title': item['title'], 'text': item['snippet'], 'link': item['link']})
+        except Exception as e:
+            logger.exception(e)
+            raise ActionFailure(e)
+        return results
+
+    @staticmethod
+    def perform_keenable_search(api_key: str, search_term: str, **kwargs):
+        """
+        Searches the web with Keenable (https://docs.keenable.ai).
+
+        Without an api_key the keyless public endpoint is used; with a key,
+        the keyed endpoint is called with the X-API-Key header.
+
+        @param api_key: optional Keenable API key
+        @param search_term: search query
+        @param kwargs: num (max results) and website (restricts results to a site)
+        :return: list of {'title', 'text', 'link'} dicts
+        """
+        num_results = kwargs.get("num") or 1
+        website = kwargs.get("website")
+        body = {"query": search_term, "max_results": num_results, "snippet_max_length": 300}
+        if website:
+            body["site"] = website
+        headers = {"Content-Type": "application/json", "X-Keenable-Title": "kairon"}
+        if ActionUtility.is_empty(api_key):
+            url = KEENABLE_SEARCH_PUBLIC_URL
+        else:
+            url = KEENABLE_SEARCH_URL
+            headers["X-API-Key"] = api_key
+        results = []
+        try:
+            response = requests.post(url, json=body, headers=headers, timeout=KEENABLE_SEARCH_TIMEOUT)
+            if response.status_code != 200:
+                raise ActionFailure(f"Keenable search failed with status {response.status_code}: {response.text[:500]}")
+            for item in response.json().get("results") or []:
+                text = item.get("description") or item.get("snippet") or ""
+                results.append({"title": item.get("title") or item.get("url"), "text": text, "link": item.get("url")})
         except Exception as e:
             logger.exception(e)
             raise ActionFailure(e)
