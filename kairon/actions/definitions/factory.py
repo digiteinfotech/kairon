@@ -6,6 +6,7 @@ from kairon.actions.definitions.custom_parallel_actions import ActionParallel
 from kairon.actions.definitions.email import ActionEmail
 from kairon.actions.definitions.form_validation import ActionFormValidation
 from kairon.actions.definitions.google import ActionGoogleSearch
+from kairon.actions.definitions.keenable import ActionKeenableSearch
 from kairon.actions.definitions.http import ActionHTTP
 from kairon.actions.definitions.hubspot import ActionHubspotForms
 from kairon.actions.definitions.jira import ActionJiraTicket
@@ -34,6 +35,7 @@ class ActionFactory:
     __implementations = {
         ActionType.http_action.value: ActionHTTP,
         ActionType.google_search_action.value: ActionGoogleSearch,
+        ActionType.keenable_search_action.value: ActionKeenableSearch,
         ActionType.slot_set_action.value: ActionSetSlot,
         ActionType.email_action.value: ActionEmail,
         ActionType.form_validation_action.value: ActionFormValidation,

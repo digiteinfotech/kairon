@@ -6,13 +6,13 @@ from mongoengine import Document
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import HttpActionConfig, KaironTwoStageFallbackAction, EmailActionConfig, \
-    ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, PipedriveLeadsAction, \
+    ZendeskAction, JiraAction, FormValidationAction, SlotSetAction, GoogleSearchAction, KeenableSearchAction, PipedriveLeadsAction, \
     PromptAction, WebSearchAction, RazorpayAction, PyscriptActionConfig, DatabaseAction, LiveAgentActionConfig, \
     CallbackActionConfig, ScheduleAction, Actions, ParallelActionConfig, VoiceCallAction, StorePageAction, AgentActionConfig
 from kairon.shared.actions.models import ActionType
 from kairon.shared.callback.data_objects import CallbackConfig
 from kairon.shared.data.data_models import HttpActionConfigRequest, TwoStageFallbackConfigRequest, EmailActionRequest, \
-    JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, PipedriveActionRequest, \
+    JiraActionRequest, ZendeskActionRequest, SlotSetActionRequest, GoogleSearchActionRequest, KeenableSearchActionRequest, PipedriveActionRequest, \
     RazorpayActionRequest, PyscriptActionRequest, DatabaseActionRequest, \
     LiveAgentActionRequest, CallbackActionConfigRequest, ScheduleActionRequest, WebSearchActionRequest, \
     CallbackConfigRequest, PromptActionConfigUploadValidation, ParallelActionRequest, VoiceCallActionRequest, \
@@ -77,6 +77,10 @@ class ActionSerializer:
         ActionType.google_search_action.value: {
             "db_model": GoogleSearchAction,
             "validation_model": GoogleSearchActionRequest,
+        },
+        ActionType.keenable_search_action.value: {
+            "db_model": KeenableSearchAction,
+            "validation_model": KeenableSearchActionRequest,
         },
         ActionType.pipedrive_leads_action.value: {
             "db_model": PipedriveLeadsAction,
