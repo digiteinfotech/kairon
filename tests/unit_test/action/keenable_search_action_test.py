@@ -229,6 +229,24 @@ class TestKeenableSearchAction:
         assert captured == {'search_term': 'what is kanban'}
         assert 'what-is-kanban' in dispatcher.messages[0]['text']
 
+    def test_delete_slot_blocked_by_keenable_reference_in_any_case(self):
+        from kairon.shared.data.data_objects import Slots
+        processor = MongoProcessor()
+        bot = 'test_keenable_slot_case'
+        user = 'test_user'
+        Slots(name='query', type='text', bot=bot, user=user).save()
+        KeenableSearchAction(
+            name='keenable_case', bot=bot, user=user,
+            search_term={'parameter_type': 'slot', 'value': 'Query'},
+        ).save()
+        try:
+            with pytest.raises(AppException, match='Slot is attached to action'):
+                processor.delete_slot('QUERY', bot, user)
+            assert Slots.objects(name='query', bot=bot, status=True).count() == 1
+        finally:
+            Slots.objects(bot=bot).delete()
+            KeenableSearchAction.objects(bot=bot).delete()
+
     def test_is_slot_in_keenable_search_action_config(self):
         config = {'api_key': {'parameter_type': 'value', 'value': 'k'},
                   'search_term': {'parameter_type': 'slot', 'value': 'query'}}
