@@ -5121,14 +5121,14 @@ class MongoProcessor:
                 bot=bot, status=True, set_slot=slot_name
             )
             keenable_search_action_with_slot = KeenableSearchAction.objects(
-                Q(set_slot=slot_name)
+                Q(set_slot__iexact=slot.name)
                 | (
                     Q(search_term__parameter_type=ActionParameterType.slot.value)
-                    & Q(search_term__value=slot_name)
+                    & Q(search_term__value__iexact=slot.name)
                 )
                 | (
                     Q(api_key__parameter_type=ActionParameterType.slot.value)
-                    & Q(api_key__value=slot_name)
+                    & Q(api_key__value__iexact=slot.name)
                 ),
                 bot=bot, status=True,
             )
