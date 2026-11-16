@@ -132,6 +132,17 @@ class TestKeenableSearchAction:
         assert config['db_model'] == KeenableSearchAction
         assert config['validation_model'] == KeenableSearchActionRequest
 
+    def test_keenable_import_fills_parameter_keys(self):
+        modify = ActionSerializer.action_lookup[ActionType.keenable_search_action.value]["modify"]
+        data = modify("bot", {
+            "name": "keenable_import",
+            "api_key": {"value": "secret", "parameter_type": "value"},
+            "search_term": {"value": "slot_q", "parameter_type": "slot", "key": "custom"},
+        })
+        assert data["api_key"]["key"] == "api_key"
+        assert data["search_term"]["key"] == "custom"
+        assert modify("bot", {"name": "keyless"}) == {"name": "keyless"}
+
     def test_add_list_edit_keenable_search_action(self):
         processor = MongoProcessor()
         bot = 'test_keenable_processor'

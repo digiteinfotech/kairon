@@ -81,6 +81,7 @@ class ActionSerializer:
         ActionType.keenable_search_action.value: {
             "db_model": KeenableSearchAction,
             "validation_model": KeenableSearchActionRequest,
+            "modify": DataValidation.modify_keenable_search_action,
         },
         ActionType.pipedrive_leads_action.value: {
             "db_model": PipedriveLeadsAction,
