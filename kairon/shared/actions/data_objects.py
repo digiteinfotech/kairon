@@ -627,6 +627,44 @@ class GoogleSearchAction(Auditlog):
 
 @auditlogger.log
 @push_notification.apply
+class KeenableSearchAction(Auditlog):
+    """
+    Web search through the Keenable Search API (https://docs.keenable.ai).
+    api_key is optional: without it, the keyless public endpoint is used.
+    """
+    name = StringField(required=True)
+    api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
+    search_term = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
+    website = StringField(default=None)
+    failure_response = StringField(default="I have failed to process your request.")
+    num_results = IntField(default=1)
+    dispatch_response = BooleanField(default=True)
+    set_slot = StringField()
+    bot = StringField(required=True)
+    user = StringField(required=True)
+    timestamp = DateTimeField(default=datetime.utcnow)
+    status = BooleanField(default=True)
+
+    meta = {"indexes": [{"fields": ["bot", ("bot", "name", "status")]}]}
+
+    def validate(self, clean=True):
+        if clean:
+            self.clean()
+
+    def clean(self):
+        self.name = self.name.strip().lower()
+        if self.api_key:
+            self.api_key.key = "api_key"
+        if Utility.check_empty_string(self.failure_response):
+            self.failure_response = "I have failed to process your request."
+        try:
+            self.num_results = int(self.num_results)
+        except ValueError:
+            self.num_results = 1
+
+
+@auditlogger.log
+@push_notification.apply
 class WebSearchAction(Auditlog):
     name = StringField(required=True)
     website = StringField(default=None)

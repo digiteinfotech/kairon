@@ -207,6 +207,19 @@ class DataValidation:
         return data_error
 
     @staticmethod
+    def modify_keenable_search_action(bot: str, data: dict) -> dict:
+        """Fill in the internal parameter keys for imported Keenable configs.
+
+        Bulk import uses ``objects.insert()``, which skips ``clean()``, so the
+        ``key`` the executor resolves parameters by would otherwise be missing.
+        """
+        for field in ("api_key", "search_term"):
+            param = data.get(field)
+            if isinstance(param, dict) and not param.get("key"):
+                param["key"] = field
+        return data
+
+    @staticmethod
     def modify_callback_config(bot: str, data: dict) -> dict:
         data['token_hash'] = uuid7().hex
         data['validation_secret'] = encrypt_secret(uuid7().hex)
