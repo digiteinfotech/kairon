@@ -9,6 +9,7 @@ from datetime import datetime, timezone, date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from unittest.mock import patch, MagicMock
+import requests
 
 import pytest
 import pytz
@@ -4835,6 +4836,95 @@ def test_invoke_agentic_flow_http_error(mock_http_request):
             token=MOCK_TOKEN,
             bot=MOCK_BOT
         )
+
+LLM_ENV = {
+    "llm": {
+        "url": "http://fake-llm",
+        "request_timeout": 45
+    }
+}
+
+def test_get_decision_success():
+    body = {
+        "decision_request": {"question": "approve?"},
+        "user": "test_user",
+        "invocation": {}
+    }
+
+    response = MagicMock()
+    response.json.return_value = {"decision": "approve"}
+
+    with patch("requests.post", return_value=response), \
+         patch("kairon.shared.utils.Utility.environment", LLM_ENV):
+
+        result = CallbackScriptUtility.get_decision(
+            "bot123", "openrouter", body, None
+        )
+
+    assert result == {"decision": "approve"}
+    response.raise_for_status.assert_called_once()
+
+
+def test_get_decision_http_failure():
+    body = {
+        "decision_request": {"question": "approve?"},
+        "user": "test_user",
+        "invocation": {}
+    }
+
+    response = MagicMock()
+    response.raise_for_status.side_effect = requests.HTTPError("500 Server Error")
+
+    with patch("requests.post", return_value=response), \
+         patch("kairon.shared.utils.Utility.environment", LLM_ENV):
+
+        with pytest.raises(requests.HTTPError):
+            CallbackScriptUtility.get_decision(
+                "bot123", "openrouter", body, None
+            )
+
+    response.json.assert_not_called()
+
+
+def test_get_decision_missing_decision_request():
+    body = {
+        "user": "test_user",
+        "invocation": {}
+    }
+
+    response = MagicMock()
+    response.json.return_value = {"decision": "approve"}
+
+    with patch("requests.post", return_value=response) as mock_post, \
+         patch("kairon.shared.utils.Utility.environment", LLM_ENV):
+
+        CallbackScriptUtility.get_decision(
+            "bot123", "openrouter", body, None
+        )
+
+    assert mock_post.call_args.kwargs["json"]["decision_request"] is None
+
+def test_get_decision_missing_user_and_invocation():
+    body = {
+        "decision_request": {"question": "approve?"}
+    }
+
+    response = MagicMock()
+    response.json.return_value = {"decision": "approve"}
+
+    with patch("requests.post", return_value=response) as mock_post, \
+         patch("kairon.shared.utils.Utility.environment", LLM_ENV):
+
+        CallbackScriptUtility.get_decision(
+            "bot123", "openrouter", body, None
+        )
+
+    assert mock_post.call_args.kwargs["json"] == {
+        "decision_request": {"question": "approve?"},
+        "user": None,
+        "invocation": {}
+    }
+
 
 class TestGetOrderDetails:
 
