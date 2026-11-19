@@ -608,7 +608,7 @@ class POSProcessor:
             logger.exception(f"Notification failed for bot {bot}: {e}")
             return None
 
-    def create_pos_order(self, session_id: str, products: list, partner_id: int = None, company_id: int = 1,
+    def create_pos_order(self, session_id: str, bot: str, products: list, partner_id: int = None, company_id: int = 1,
                          order_type: str = None, table_name: str = None, kitchen_station: str = None,
                          note: str = None):
         """
@@ -833,6 +833,26 @@ class POSProcessor:
         )
 
         order_id = order_ids[0] if isinstance(order_ids, list) else order_ids
+        status = "created"
+
+        if isinstance(order_id, dict):
+            order_id = order_id.get("id")
+
+        bot_setting = BotSettings.objects(bot=bot, status=True).first()
+        accept_order = bot_setting.pos_settings.auto_accept
+
+        if accept_order:
+            try:
+                res = self.accept_pos_order(session_id, order_id)
+
+                if res.get("accepted"):
+                    status = "accepted"
+
+                if res.get("invoiced") is False:
+                    logger.warning(f"Order {order_id} accepted but not invoiced for bot {bot}")
+
+            except Exception as e:
+                logger.exception(f"Auto-accept failed for order {order_id}: {e}")
 
         kot_items = [
             {
@@ -845,7 +865,7 @@ class POSProcessor:
 
         return {
             "order_id": order_id,
-            "status": "created",
+            "status": status,
             "kot": {
                 "order_type": order_type,
                 "table": table_name,
@@ -1097,7 +1117,7 @@ class POSProcessor:
         from kairon.pos.definitions.factory import POSFactory
         bot_setting_obj = BotSettings.objects(bot=bot).first()
         bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
-        if bot_setting.get("pos_enabled", False):
+        if MongoProcessor.is_pos_enabled(bot):
             client_details = POSProcessor.get_client_details(bot)
             pos_type = client_details.get("pos_type", "odoo")
             client_name = client_details["client_name"]

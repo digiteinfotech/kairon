@@ -1651,7 +1651,7 @@ def test_pos_register_pos_not_enabled():
 @responses.activate
 def test_pos_register_with_client_name_exists():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1678,7 +1678,7 @@ def test_pos_register_with_client_name_exists():
 @responses.activate
 def test_pos_register():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1712,7 +1712,7 @@ def test_pos_register():
 
 def test_pos_login_pos_not_enabled():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = False
+    bot_settings.pos_settings.pos_enabled = False
     bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/pos/odoo/login",
@@ -1730,7 +1730,7 @@ def test_pos_login_pos_not_enabled():
 @responses.activate
 def test_pos_login_with_page_type_pos_orders():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1755,7 +1755,7 @@ def test_pos_login_with_page_type_pos_orders():
 @responses.activate
 def test_pos_login():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1780,7 +1780,7 @@ def test_pos_login():
 @responses.activate
 def test_pos_login_with_cid():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -4719,7 +4719,7 @@ def test_default_values():
 
 def test_odoo_registration():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
     with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
 

@@ -8720,7 +8720,7 @@ class MongoProcessor:
     @staticmethod
     def is_pos_enabled(bot: str):
         bot_setting = BotSettings.objects(bot=bot).get().to_mongo().to_dict()
-        return bot_setting.get("pos_enabled")
+        return bot_setting.pos_settings.get("pos_enabled")
 
     @staticmethod
     def is_voice_enabled(bot: str):
