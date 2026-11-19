@@ -17,6 +17,7 @@ from kairon.shared.request_context import get_request_id
 from kairon.shared.utils import Utility
 
 CHAT_HISTORY_SIZE = 5
+FAILURE_RESPONSE = "I have failed to process your request."
 
 
 class ActionAgent(ActionsBase):
@@ -69,11 +70,17 @@ class ActionAgent(ActionsBase):
             text = text.replace("\n\n", "\n")
         return text
 
+    @staticmethod
+    def _format_text_response(text: str) -> dict:
+        """Custom message carrying the agent output as one markdown paragraph."""
+        return {"type": "markdown", "data": [{"type": "markdown", "children": [{"text": text}]}]}
+
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
         action_call = kwargs.get('action_call', {})
         status = STATUSES.SUCCESS.value
         exception = None
         bot_response = None
+        custom_message = None
         api_response = None
         filled_slots = {}
         http_url = None
@@ -114,18 +121,22 @@ class ActionAgent(ActionsBase):
             ActionUtility.validate_http_response_status(api_response, status_code, raise_err=True)
 
             if isinstance(api_response, dict):
-                bot_response = api_response.get("output") or ""
+                output = api_response.get("output") or ""
             else:
-                bot_response = str(api_response) if api_response else ""
+                output = str(api_response) if api_response else ""
+            if not isinstance(output, str):
+                output = str(output)
 
-            self.__response = bot_response
+            self.__response = output
+            bot_response = self._single_dispatch_text(output) if output else ""
+            custom_message = self._format_text_response(bot_response) if bot_response else None
             self.__is_success = True
 
         except Exception as e:
             exception = str(e)
             logger.exception(e)
             status = STATUSES.FAIL.value
-            bot_response = "I have failed to process your request."
+            bot_response = FAILURE_RESPONSE
             ActionUtility.trigger_action_failure_mail(
                 slot_values=tracker.current_slot_values(),
                 bot_name=self.bot,
@@ -134,7 +145,10 @@ class ActionAgent(ActionsBase):
             )
         finally:
             if dispatch_bot_response and bot_response:
-                dispatcher.utter_message(text=self._single_dispatch_text(bot_response))
+                if custom_message:
+                    dispatcher.utter_message(json_message=custom_message)
+                else:
+                    dispatcher.utter_message(text=bot_response)
             trigger_info_obj = TriggerInfo(**(action_call.get('trigger_info') or {}))
             ActionServerLogs(
                 type=ActionType.agent_action.value,
