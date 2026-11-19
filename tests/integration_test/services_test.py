@@ -2508,7 +2508,13 @@ def test_create_pos_order_without_partner():
                     {"company_id": 10, "branch_name": "kairon Branch"}
                 ]
             }
-    ):
+    ),patch(
+            "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         res = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2590,7 +2596,13 @@ def test_create_pos_order_success():
                     {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
-    ):
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2680,7 +2692,12 @@ def test_create_pos_order_success_with_cid():
                     {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
-    ):
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2802,7 +2819,13 @@ def test_create_pos_order_create_new_session():
                 }
             ]
         }
-    ):
+    ),patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,

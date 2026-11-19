@@ -835,15 +835,14 @@ class POSProcessor:
         order_id = order_ids[0] if isinstance(order_ids, list) else order_ids
         status = "created"
 
-        if isinstance(order_id, dict):
-            order_id = order_id.get("id")
+        order_id_value = order_id.get("id") if isinstance(order_id, dict) else order_id
 
         bot_setting = BotSettings.objects(bot=bot, status=True).first()
         accept_order = bot_setting.pos_settings.auto_accept
 
         if accept_order:
             try:
-                res = self.accept_pos_order(session_id, order_id)
+                res = self.accept_pos_order(session_id, order_id_value)
 
                 if res.get("accepted"):
                     status = "accepted"

@@ -318,6 +318,7 @@ def test_create_pos_user_success():
          patch("kairon.shared.pos.processor.POSProcessor.get_client_details") as mock_client_details, \
          patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_get_instance, \
          patch("kairon.shared.pos.processor.POSProcessor.generate_password") as mock_password, \
+         patch("kairon.shared.pos.processor.MongoProcessor.is_pos_enabled",return_value=True) as mock_is_pos_enabled, \
          patch("kairon.shared.pos.processor.POSProcessor.create_user") as mock_create_user:
 
 
@@ -349,7 +350,7 @@ def test_create_pos_user_success():
 
 
         processor.create_pos_user(bot="test_bot", email="test@demo.ai")
-
+        mock_is_pos_enabled.assert_called_once_with("test_bot")
 
         mock_create_user.assert_called_once_with(
             session_id="test_session",
@@ -363,21 +364,26 @@ def test_create_pos_user_success():
 def test_create_pos_user_disabled():
     processor = POSProcessor()
 
-    with patch("kairon.shared.pos.processor.BotSettings.objects") as mock_objects, \
-         patch("kairon.shared.pos.processor.POSProcessor.create_user") as mock_create_user:
+    with patch(
+            "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_objects, patch(
+        "kairon.shared.pos.processor.MongoProcessor.is_pos_enabled",
+        return_value=False
+    ) as mock_is_pos_enabled, patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details"
+    ) as mock_get_client, patch(
+        "kairon.shared.pos.processor.POSProcessor.create_user"
+    ) as mock_create_user:
+        mock_objects.return_value.first.return_value = MagicMock()
 
-        mock_record = MagicMock()
-        mock_record.to_mongo.return_value.to_dict.return_value = {
-            "pos_enabled": False
-        }
+        processor.create_pos_user(
+            bot="test_bot",
+            email="test@demo.ai"
+        )
 
-        mock_qs = MagicMock()
-        mock_qs.first.return_value = mock_record
-        mock_objects.return_value = mock_qs
-
-        processor.create_pos_user(bot="test_bot", email="test@demo.ai")
-
-        mock_create_user.assert_not_called()
+    mock_is_pos_enabled.assert_called_once_with("test_bot")
+    mock_get_client.assert_not_called()
+    mock_create_user.assert_not_called()
 
 def test_generate_password_default_length():
     password = POSProcessor.generate_password()
