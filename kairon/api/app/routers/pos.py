@@ -111,6 +111,7 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
     logger.info(f"request payload: {req}")
     result = pos_processor.create_pos_order(
         session_id=session_id,
+        bot=current_user.get_bot(),
         products=[p.dict() for p in req.products],
         partner_id=req.partner_id,
         company_id=req.company_id,
