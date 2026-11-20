@@ -667,7 +667,7 @@ class CallbackScriptUtility:
         return result
 
     @staticmethod
-    def get_decision(bot: str, llm_type: str, body: dict, request: Request):
+    def get_decision(llm_type: str, body: dict, bot: str = None):
 
         payload = {
             "decision_request": body.get("decision_request"),

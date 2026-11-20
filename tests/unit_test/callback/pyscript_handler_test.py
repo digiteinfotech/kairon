@@ -4858,7 +4858,7 @@ def test_get_decision_success():
          patch("kairon.shared.utils.Utility.environment", LLM_ENV):
 
         result = CallbackScriptUtility.get_decision(
-            "bot123", "openrouter", body, None
+            "openrouter", body, "bot123"
         )
 
     assert result == {"decision": "approve"}
@@ -4880,7 +4880,7 @@ def test_get_decision_http_failure():
 
         with pytest.raises(requests.HTTPError):
             CallbackScriptUtility.get_decision(
-                "bot123", "openrouter", body, None
+                 "openrouter", body, "bot123"
             )
 
     response.json.assert_not_called()
@@ -4899,7 +4899,7 @@ def test_get_decision_missing_decision_request():
          patch("kairon.shared.utils.Utility.environment", LLM_ENV):
 
         CallbackScriptUtility.get_decision(
-            "bot123", "openrouter", body, None
+             "openrouter", body, "bot123"
         )
 
     assert mock_post.call_args.kwargs["json"]["decision_request"] is None
@@ -4916,7 +4916,7 @@ def test_get_decision_missing_user_and_invocation():
          patch("kairon.shared.utils.Utility.environment", LLM_ENV):
 
         CallbackScriptUtility.get_decision(
-            "bot123", "openrouter", body, None
+            "openrouter", body, "bot123"
         )
 
     assert mock_post.call_args.kwargs["json"] == {
