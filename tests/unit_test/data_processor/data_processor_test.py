@@ -85,7 +85,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories, LLMSettings,
+                                             SlotMapping, KeyVault, MultiflowStories, LLMSettings, POSSettings,
                                              MultiflowStoryEvents, Synonyms,
                                              Lookup, POSIntegrations, PetpoojaSyncConfig
                                              )
