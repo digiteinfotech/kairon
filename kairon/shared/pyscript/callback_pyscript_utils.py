@@ -31,7 +31,6 @@ from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
 import requests
-from blacksheep import Request
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from urllib.parse import urljoin
