@@ -897,6 +897,10 @@ class LLMSettings(EmbeddedDocument):
 class Analytics(EmbeddedDocument):
     fallback_intent = StringField(default=DEFAULT_NLU_FALLBACK_INTENT_NAME)
 
+class POSSettings(EmbeddedDocument):
+    pos_enabled = BooleanField(default=False)
+    auto_accept = BooleanField(default=False)
+    kot_enabled = BooleanField(default=False)
 
 @auditlogger.log
 @push_notification.apply
@@ -936,7 +940,7 @@ class BotSettings(Auditlog):
     cognition_columns_per_collection_limit = IntField(default=5)
     integrations_per_user_limit = IntField(default=3)
     live_agent_enabled = BooleanField(default=False)
-    pos_enabled = BooleanField(default=False)
+    pos_settings = EmbeddedDocumentField(POSSettings, default=POSSettings())
     enable_voice = BooleanField(default=False)
     max_actions_per_parallel_action = IntField(default=5)
     catalog_sync_limit_per_day = IntField(default=5)

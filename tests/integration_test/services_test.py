@@ -1651,7 +1651,7 @@ def test_pos_register_pos_not_enabled():
 @responses.activate
 def test_pos_register_with_client_name_exists():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1678,7 +1678,7 @@ def test_pos_register_with_client_name_exists():
 @responses.activate
 def test_pos_register():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1712,7 +1712,7 @@ def test_pos_register():
 
 def test_pos_login_pos_not_enabled():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = False
+    bot_settings.pos_settings.pos_enabled = False
     bot_settings.save()
     response = client.post(
         f"/api/bot/{pytest.bot}/pos/odoo/login",
@@ -1730,7 +1730,7 @@ def test_pos_login_pos_not_enabled():
 @responses.activate
 def test_pos_login_with_page_type_pos_orders():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1755,7 +1755,7 @@ def test_pos_login_with_page_type_pos_orders():
 @responses.activate
 def test_pos_login():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -1780,7 +1780,7 @@ def test_pos_login():
 @responses.activate
 def test_pos_login_with_cid():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
 
     base = Utility.environment["pos"]["odoo"]["odoo_url"]
@@ -2508,7 +2508,13 @@ def test_create_pos_order_without_partner():
                     {"company_id": 10, "branch_name": "kairon Branch"}
                 ]
             }
-    ):
+    ),patch(
+            "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         res = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2590,7 +2596,13 @@ def test_create_pos_order_success():
                     {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
-    ):
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2680,7 +2692,12 @@ def test_create_pos_order_success_with_cid():
                     {"company_id": 10, "branch_name": "Main Branch"}
                 ]
             }
-    ):
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -2802,7 +2819,13 @@ def test_create_pos_order_create_new_session():
                 }
             ]
         }
-    ):
+    ),patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings:
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
         response = client.post(
             f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
             json=payload,
@@ -3259,6 +3282,267 @@ def test_get_user_access_odoo_error():
     print(data)
 
     assert "error" in data["data"]
+
+def mock_pos_order_responses():
+    base = Utility.environment["pos"]["odoo"]["odoo_url"]
+    url = f"{base}/web/dataset/call_kw"
+
+    responses.add(
+        responses.POST, url,
+        json={"result": [{
+            "name": "Pepsi",
+            "display_name": "Pepsi 500ml",
+            "lst_price": 50,
+            "available_in_pos": True,
+            "uom_id": [1, "Units"],
+            "taxes_id": []
+        }]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST, url,
+        json={"result": [{"id": 1, "company_id": [1, "My Company"]}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST, url,
+        json={"result": [{"id": 10, "sequence_number": 1}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST, url,
+        json={"result": [{"id": 5}]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST, url,
+        json={"result": [123]},
+        status=200
+    )
+
+    responses.add(
+        responses.POST, url,
+        json={"result": {
+            "id": 555,
+            "pos_reference": "POS/1777892348",
+            "account_move": False
+        }},
+        status=200
+    )
+
+POS_ORDER_PAYLOAD = {
+    "products": [
+        {
+            "product_id": 1,
+            "qty": 2,
+            "unit_price": 20.0
+        }
+    ],
+    "partner_id": 3
+}
+
+POS_CLIENT_DETAILS = {
+    "client_name": "Test Client",
+    "branches": [
+        {
+            "company_id": 10,
+            "branch_name": "Main Branch"
+        }
+    ]
+}
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_auto_accept_enabled():
+
+    mock_pos_order_responses()
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value=POS_CLIENT_DETAILS
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings, patch(
+        "kairon.shared.pos.processor.POSProcessor.accept_pos_order",
+        return_value={"accepted": True}
+    ) as mock_accept:
+
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=True)
+        )
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=POS_ORDER_PAYLOAD,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            }
+        )
+
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"]["status"] == "accepted"
+
+    mock_accept.assert_called_once_with(
+        pytest.session_id,
+        555
+    )
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_auto_accept_disabled():
+
+    mock_pos_order_responses()
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value=POS_CLIENT_DETAILS
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings, patch(
+        "kairon.shared.pos.processor.POSProcessor.accept_pos_order"
+    ) as mock_accept:
+
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=False)
+        )
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=POS_ORDER_PAYLOAD,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            }
+        )
+
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"]["status"] == "created"
+
+    mock_accept.assert_not_called()
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_auto_accept_failure():
+
+    mock_pos_order_responses()
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value=POS_CLIENT_DETAILS
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings, patch(
+        "kairon.shared.pos.processor.POSProcessor.accept_pos_order",
+        side_effect=Exception("Odoo acceptance failed")
+    ) as mock_accept:
+
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=True)
+        )
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=POS_ORDER_PAYLOAD,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            }
+        )
+
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"]["status"] == "created"
+
+    mock_accept.assert_called_once_with(
+        pytest.session_id,
+        555
+    )
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_auto_accept_invoice_success():
+
+    mock_pos_order_responses()
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value=POS_CLIENT_DETAILS
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings, patch(
+        "kairon.shared.pos.processor.POSProcessor.accept_pos_order",
+        return_value={
+            "accepted": True,
+            "invoiced": True
+        }
+    ) as mock_accept:
+
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=True)
+        )
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=POS_ORDER_PAYLOAD,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            }
+        )
+
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"]["status"] == "accepted"
+
+    mock_accept.assert_called_once_with(pytest.session_id, 555)
+
+
+@pytest.mark.asyncio
+@responses.activate
+def test_create_pos_order_auto_accept_invoice_failure():
+
+    mock_pos_order_responses()
+
+    with patch(
+        "kairon.shared.pos.processor.POSProcessor.get_client_details",
+        return_value=POS_CLIENT_DETAILS
+    ), patch(
+        "kairon.shared.pos.processor.BotSettings.objects"
+    ) as mock_settings, patch(
+        "kairon.shared.pos.processor.POSProcessor.accept_pos_order",
+        return_value={
+            "accepted": True,
+            "invoiced": False
+        }
+    ) as mock_accept:
+
+        mock_settings.return_value.first.return_value = MagicMock(
+            pos_settings=MagicMock(auto_accept=True)
+        )
+
+        response = client.post(
+            f"/api/bot/{pytest.bot}/pos/odoo/pos_order?session_id={pytest.session_id}",
+            json=POS_ORDER_PAYLOAD,
+            headers={
+                "Authorization": pytest.token_type + " " + pytest.access_token
+            }
+        )
+
+    data = response.json()
+
+    assert data["success"]
+    assert data["data"]["status"] == "accepted"
+
+    mock_accept.assert_called_once_with(pytest.session_id, 555)
 
 
 @pytest.mark.asyncio
@@ -4719,7 +5003,7 @@ def test_default_values():
 
 def test_odoo_registration():
     bot_settings = BotSettings.objects(bot=pytest.bot).get()
-    bot_settings.pos_enabled = True
+    bot_settings.pos_settings.pos_enabled = True
     bot_settings.save()
     with patch("kairon.pos.definitions.factory.POSFactory.get_instance") as mock_factory:
 
