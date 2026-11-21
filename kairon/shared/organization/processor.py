@@ -133,7 +133,7 @@ class OrgProcessor:
     @staticmethod
     def delete_org(account, org_id, user:str = None):
         try:
-            org = Organization.objects(name=org_id, account__contains=account).get()
+            org = Organization.objects(id=org_id, account__contains=account).get()
             org_name = org.name
             Utility.delete_documents(org, user)
         except DoesNotExist:
