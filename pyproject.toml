@@ -91,7 +91,7 @@ dependencies = [
 dev = [
     "pytest==8.4.2",
     "pytest_httpx==0.30.0",
-    "pytest-asyncio==0.24.0",
+    "pytest-asyncio==1.4.0",
     "responses==0.25.6",
     "mock==5.1.0",
     "moto[all]==5.0.26",
