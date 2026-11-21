@@ -68,30 +68,28 @@ permissions_value = (
     PermissionsPolicy()
     .accelerometer()
     .autoplay()
-    .camera()
-    .document_domain()
-    .encrypted_media()
     .fullscreen()
-    .vibrate()
     .geolocation()
     .gyroscope()
     .magnetometer()
     .microphone()
-    .midi()
-    .payment()
-    .picture_in_picture()
-    .sync_xhr()
     .usb()
 )
-secure_headers = Secure(
-    server=server,
-    csp=csp,
-    hsts=hsts,
-    referrer=referrer,
-    permissions=permissions_value,
-    cache=cache_value,
-    content=content,
-)
+
+
+def build_secure_headers(policy):
+    return Secure(
+        server=server,
+        csp=policy,
+        hsts=hsts,
+        referrer=referrer,
+        permissions=permissions_value,
+        cache=cache_value,
+        xcto=content,
+    )
+
+
+secure_headers = build_secure_headers(csp)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -124,7 +122,7 @@ register_request_id_middleware(action)
 async def add_secure_headers(request: Request, call_next):
     """add security headers"""
     response = await call_next(request)
-    secure_headers.framework.fastapi(response)
+    secure_headers.set_headers(response)
     response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
@@ -135,9 +133,7 @@ async def add_secure_headers(request: Request, call_next):
     if request.url.path == "/redoc":
         custom_csp = copy.deepcopy(csp)
         custom_csp.worker_src("blob:")
-        secure_headers.csp = custom_csp
-        secure_headers.framework.fastapi(response)
-        secure_headers.csp = csp
+        build_secure_headers(custom_csp).set_headers(response)
 
     return response
 
@@ -168,7 +164,7 @@ async def startlette_exception_handler(request, exc):
     return JSONResponse(
         Response(
             success=False, error_code=exc.status_code, message=str(exc.detail)
-        ).dict()
+        ).model_dump()
     )
 
 
@@ -178,7 +174,7 @@ async def http_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -188,7 +184,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=exc.errors()).dict()
+        Response(success=False, error_code=422, message=exc.errors()).model_dump()
     )
 
 
@@ -198,7 +194,7 @@ async def app_does_not_exist_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -208,7 +204,7 @@ async def pymongo_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -218,7 +214,7 @@ async def app_validation_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -228,7 +224,7 @@ async def mongoengine_operation_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -238,7 +234,7 @@ async def mongoengine_notregistered_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -248,7 +244,7 @@ async def mongoengine_invalid_document_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -258,7 +254,7 @@ async def mongoengine_lookup_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -268,7 +264,7 @@ async def mongoengine_multiple_objects_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -278,7 +274,7 @@ async def mongoengine_invalid_query_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -288,7 +284,7 @@ async def pyjwt_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 
@@ -298,7 +294,7 @@ async def app_exception_handler(request, exc):
     appropriate message and details of the error"""
     logger.exception(exc)
     return JSONResponse(
-        Response(success=False, error_code=422, message=str(exc)).dict()
+        Response(success=False, error_code=422, message=str(exc)).model_dump()
     )
 
 

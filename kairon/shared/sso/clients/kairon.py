@@ -25,8 +25,9 @@ class KaironSSO(SSOBase):
         logging.debug(f'redirect_uri: {self.redirect_uri}')
         current_path = f'{self.redirect_uri}?code={code}'
         logging.debug(f'current_path with query_params: {current_path}')
-        if self.state is not None and self.use_state and request.query_params.get("state"):
-            current_path = f'{current_path}&state={request.query_params.get("state")}'
+        callback_state = request.query_params.get("state")
+        if callback_state:
+            current_path = f'{current_path}&state={callback_state}'
         logging.debug(f'current_path with query_params: {current_path}')
         token_url, headers, body = self.oauth_client.prepare_token_request(
             await self.token_endpoint, authorization_response=current_path, redirect_url=self.redirect_uri, code=code

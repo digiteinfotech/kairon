@@ -76,15 +76,6 @@ def _build_watchdog(scheduler):
 
 
 class KScheduler(EventSchedulerBase):
-    __client = MongoClient(Utility.environment['database']['url'])
-    __events_db = Utility.environment['events']['queue']['name']
-    __job_store_name = Utility.environment['events']['scheduler']['collection']
-    __scheduler = ResilientBackgroundScheduler(
-        jobstores={__job_store_name: MongoDBJobStore(__events_db, __job_store_name, __client)},
-        job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
-    __scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
-    __watchdog = None
-
     @staticmethod
     def start():
         """
@@ -166,3 +157,24 @@ class KScheduler(EventSchedulerBase):
         event = JobEvent(EVENT_JOB_ADDED, event_id, KScheduler.__job_store_name)
         KScheduler.__scheduler._dispatch_event(event)
         KScheduler.__scheduler.wakeup()
+
+
+def _build_scheduler():
+    # A MongoClient stored on the class body answers __isabstractmethod__,
+    # so the class stays abstract. Build the job store after the class exists.
+    # Import does not start it. Only the event server calls KScheduler.start().
+    client = MongoClient(Utility.environment['database']['url'])
+    events_db = Utility.environment['events']['queue']['name']
+    job_store_name = Utility.environment['events']['scheduler']['collection']
+    scheduler = ResilientBackgroundScheduler(
+        jobstores={job_store_name: MongoDBJobStore(events_db, job_store_name, client)},
+        job_defaults={'coalesce': True, 'misfire_grace_time': 7200})
+    scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED | EVENT_JOB_EXECUTED)
+    KScheduler._KScheduler__client = client
+    KScheduler._KScheduler__events_db = events_db
+    KScheduler._KScheduler__job_store_name = job_store_name
+    KScheduler._KScheduler__scheduler = scheduler
+    KScheduler._KScheduler__watchdog = None
+
+
+_build_scheduler()

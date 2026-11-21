@@ -28,7 +28,9 @@ class ActionHandler():
 
             validated_events = ActionExecutor.validate_events(events, action_name)
             logger.debug(f"Finished running '{action_name}'")
-            return ActionExecutor._create_api_response(validated_events, dispatcher.messages)
+            # rasa-sdk returns a pydantic model. The webhook encodes it with json.dumps.
+            result = ActionExecutor._create_api_response(validated_events, dispatcher.messages)
+            return result.model_dump()
 
         logger.warning("Received an action call without an action.")
         return None

@@ -1,8 +1,8 @@
-from datetime import datetime
 
 from mongoengine import EmbeddedDocument, StringField, BooleanField, ValidationError, ListField, EmbeddedDocumentField, \
     DateTimeField, SequenceField, DynamicField, DictField, IntField
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.models import CognitionMetadataType, CognitionDataType
@@ -45,7 +45,7 @@ class CognitionSchema(Auditlog):
     collection_name = StringField(required=True)
     user = StringField(required=True)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     activeStatus = BooleanField(default=True)
     schema_metadata = EmbeddedDocumentField(SchemaMetadata, default=SchemaMetadata)
 
@@ -73,7 +73,7 @@ class CognitionData(Auditlog):
     collection = StringField(default=None)
     user = StringField(required=True)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["$data", "bot"]}]}
 
@@ -110,7 +110,7 @@ class CollectionData(Auditlog):
     filterable_attrs = ListField(DictField(), default=[])
     user = StringField(required=True)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     meta = {
@@ -152,7 +152,7 @@ class AnalyticsCollectionData(Auditlog):
     user = StringField(required=True)
     source = StringField(default="")
     data = DictField()
-    received_at = DateTimeField(default=datetime.utcnow)
+    received_at = DateTimeField(default=utc_now)
     is_data_processed = BooleanField(default=False)
 
     meta = {"indexes": [{"fields": ["bot", "collection_name"]}]}

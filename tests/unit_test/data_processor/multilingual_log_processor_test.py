@@ -98,8 +98,11 @@ class TestMultilingualLogProcessor:
 
     def test_is_limit_exceeded_failure(self, monkeypatch):
         bot = 'test_bot'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.multilingual_limit_per_day = 0
+        try:
+            bot_settings = BotSettings.objects(bot=bot).get()
+            bot_settings.multilingual_limit_per_day = 0
+        except Exception:
+            bot_settings = BotSettings(bot=bot, multilingual_limit_per_day=0, user="test")
         bot_settings.save()
         assert MultilingualLogProcessor.is_limit_exceeded(bot, False)
 
@@ -108,8 +111,11 @@ class TestMultilingualLogProcessor:
 
     def test_is_limit_exceeded(self, monkeypatch):
         bot = 'test_bot'
-        bot_settings = BotSettings.objects(bot=bot).get()
-        bot_settings.multilingual_limit_per_day = 5
+        try:
+            bot_settings = BotSettings.objects(bot=bot).get()
+            bot_settings.multilingual_limit_per_day = 5
+        except Exception:
+            bot_settings = BotSettings(bot=bot, multilingual_limit_per_day=5, user="test")
         bot_settings.save()
         assert not MultilingualLogProcessor.is_limit_exceeded(bot)
 

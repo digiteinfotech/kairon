@@ -1,10 +1,10 @@
-from datetime import datetime
 import json
 from fastapi import HTTPException
 from typing import Dict, Text, List
 import re
 from mongoengine import DoesNotExist
 from urllib.parse import unquote
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.cognition.data_objects import CollectionData
@@ -146,7 +146,7 @@ class DataProcessor:
             collection_obj.is_secure = is_secure
             collection_obj.is_non_editable = is_non_editable
             collection_obj.user = user
-            collection_obj.timestamp = datetime.utcnow()
+            collection_obj.timestamp = utc_now()
             collection_obj.save()
         except DoesNotExist:
             raise AppException("Collection Data with given id and collection_name not found!")

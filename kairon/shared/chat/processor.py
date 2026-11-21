@@ -1,11 +1,12 @@
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, Text
 
 import aiofiles
 from fastapi import File
 from loguru import logger
 from mongoengine import DoesNotExist
+from kairon.shared.clock import utc_now
 from kairon.shared.utils import Utility
 from .broadcast.processor import MessageBroadcastProcessor
 from .data_objects import Channels, ChannelLogs
@@ -50,7 +51,7 @@ class ChatDataProcessor:
             channel = Channels(**configuration)
         channel.bot = bot
         channel.user = user
-        channel.timestamp = datetime.utcnow()
+        channel.timestamp = utc_now()
         channel.save()
         if configuration['connector_type'] == ChannelTypes.MAIL.value:
             from kairon.shared.channels.mail.scheduler import MailScheduler
@@ -371,7 +372,7 @@ class ChatDataProcessor:
     @staticmethod
     def validate_media_file_type(bot: str, file_content: File):
         content_type = file_content.content_type
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        thirty_days_ago = utc_now() - timedelta(days=30)
 
         if content_type not in MIME_TYPE_LIMITS:
             raise AppException(

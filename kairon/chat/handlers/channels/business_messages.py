@@ -17,6 +17,7 @@ from businessmessages.businessmessages_v1_messages import BusinessMessagesMessag
 from businessmessages.businessmessages_v1_messages import BusinessMessagesRepresentative
 from oauth2client.service_account import ServiceAccountCredentials
 
+from kairon.shared.clock import utc_now
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
 from kairon.shared.chat.processor import ChatDataProcessor
@@ -72,7 +73,7 @@ class BusinessMessagesHandler(InputChannel):
     def check_message_create_time(create_time: str):
         from datetime import datetime
 
-        current_time = datetime.utcnow()
+        current_time = utc_now()
         message_time = datetime.strptime(create_time, '%Y-%m-%dT%H:%M:%S.%fZ')
         time_difference = current_time - message_time
         return True if time_difference.total_seconds() < 5 else False

@@ -2025,7 +2025,6 @@ class TestLLM:
         mock_request.assert_called_once()
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._sparse_embedding")
     def test_sparse_embedding_single_sentence(self, mock_sparse):
         bot = "test_bot"
@@ -2142,7 +2141,6 @@ class TestLLM:
         mock_sparse.passage_embed.assert_called_once_with(["Text of error case"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_single_sentence(self, mock_rerank):
         bot = "test_bot"
@@ -2175,7 +2173,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with(["Hello"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_multiple_sentences(self, mock_rerank):
         bot = "test_bot"
@@ -2210,7 +2207,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with(["Hello", "World"])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_empty_sentences(self, mock_rerank):
         bot = "test_bot"
@@ -2239,7 +2235,6 @@ class TestLLM:
         mock_rerank.passage_embed.assert_called_once_with([])
         LLMSecret.objects.delete()
 
-    @pytest.mark.asyncio
     @patch("kairon.shared.llm.processor.LLMProcessor._rerank_embedding")
     def test_rerank_embedding_raises_exception(self, mock_rerank):
         bot = "test_bot"
@@ -2535,36 +2530,18 @@ class TestLLM:
     #     LLMSecret.objects.delete()
 
     def test_load_sparse_embedding_model_already_initialized(self):
-        """Test that the sparse embedding model loads correctly when LLMProcessor is initialized."""
-        bot = "test_bot"
-        llm_type = "openai"
-        key = "test"
-        user = "test"
-
-        llm_secret = LLMSecret(
-            llm_type=llm_type,
-            api_key=key,
-            models=["model1", "model2"],
-            api_base_url="https://api.example.com",
-            bot=bot,
-            user=user
-        )
-        llm_secret.save()
-
-        LLMProcessor._sparse_embedding = SparseTextEmbedding("Qdrant/bm25")
-
+        """An existing sparse model is left in place and is not loaded again."""
+        sentinel = object()
+        LLMProcessor._sparse_embedding = sentinel
         log_output = StringIO()
-        logger.add(log_output, format="{message}")
-
-        processor = LLMProcessor(bot="test_bot", llm_type="openai")
-
-        logger.remove()
-        log_contents = log_output.getvalue()
-
-        assert isinstance(LLMProcessor._sparse_embedding, SparseTextEmbedding)
-        assert "SPARSE MODEL LOADED" not in log_contents
-
-        LLMSecret.objects.delete()
+        sink_id = logger.add(log_output, format="{message}")
+        try:
+            LLMProcessor.load_sparse_embedding_model()
+            assert LLMProcessor._sparse_embedding is sentinel
+            assert "SPARSE MODEL LOADED" not in log_output.getvalue()
+        finally:
+            logger.remove(sink_id)
+            LLMProcessor._sparse_embedding = None
 
     def test_load_sparse_embedding_model_not_initialized(self):
         """Test that the sparse embedding model loads correctly when LLMProcessor is not initialized."""

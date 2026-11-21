@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -74,14 +75,14 @@ class User(BaseModel):
     email: str
     first_name: str
     last_name: str
-    active_bot: str = None
-    bot_account: int = None
+    active_bot: Optional[str] = None
+    bot_account: Optional[int] = None
     account: int
     is_onboarded: bool = False
     status: bool
-    alias_user: str = None
+    alias_user: Optional[str] = None
     is_integration_user: bool = False
-    role: ACCESS_ROLES = None
+    role: Optional[ACCESS_ROLES] = None
 
     def get_bot(self):
         return self.active_bot

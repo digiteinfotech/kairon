@@ -1,6 +1,6 @@
 from mongoengine import StringField, DictField, DateTimeField, DynamicDocument, FloatField, DynamicField
-from datetime import datetime
 
+from kairon.shared.clock import utc_now
 from kairon.shared.data.constant import TASK_TYPE
 
 
@@ -12,5 +12,5 @@ class ExecutorLogs(DynamicDocument):
     exception = StringField()
     response = DictField()
     time_elapsed = FloatField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 

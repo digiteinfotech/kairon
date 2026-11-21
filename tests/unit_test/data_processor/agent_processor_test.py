@@ -19,12 +19,43 @@ from kairon.shared.data.model_processor import ModelProcessor
 from unittest.mock import patch
 from mongoengine import connect
 
+# tests/testing_data/model_tester/config.yml stays on DIET/TED at 100 epochs.
+# These tests only check that a model loads and which lock store it uses.
+_FAST_TRAIN_CONFIG = (
+    "recipe: default.v1\n"
+    "language: en\n"
+    "pipeline:\n"
+    "- name: KeywordIntentClassifier\n"
+    "policies:\n"
+    "- name: MemoizationPolicy\n"
+    "- name: RulePolicy\n"
+)
+
+
+def _tolerant_keyword_map(self):
+    # The same short example is a word inside a longer example of another intent.
+    # Rasa pops that keyword once per longer example and KeyErrors on the second pop.
+    import re
+
+    re_flag = 0 if self.case_sensitive else re.IGNORECASE
+    ambiguous = []
+    for keyword1, intent1 in self.intent_keyword_map.items():
+        for keyword2, intent2 in self.intent_keyword_map.items():
+            if (
+                re.search(r"\b" + keyword1 + r"\b", keyword2, flags=re_flag)
+                and intent1 != intent2
+            ):
+                ambiguous.append(keyword1)
+    for keyword in ambiguous:
+        self.intent_keyword_map.pop(keyword, None)
+
 
 class TestAgentProcessor:
 
     @pytest.fixture(autouse=True, scope='class')
     def init_connection(self):
         from rasa import train
+        from rasa.nlu.classifiers.keyword_intent_classifier import KeywordIntentClassifier
 
         os.environ["system_file"] = "./tests/testing_data/system.yaml"
         Utility.load_environment()
@@ -34,15 +65,23 @@ class TestAgentProcessor:
         model_path = os.path.join('models', bot)
         if not os.path.exists(model_path):
             os.mkdir(model_path)
-        model_file = train(
-            domain='tests/testing_data/model_tester/domain.yml',
-            config='tests/testing_data/model_tester/config.yml',
-            training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
-                            'tests/testing_data/model_tester/training_stories_success/stories.yml'],
-            output=model_path,
-            core_additional_arguments={"augmentation_factor": 100},
-            force_training=True
-        ).model
+        config_path = os.path.join(model_path, 'fast_train_config.yml')
+        with open(config_path, 'w') as target:
+            target.write(_FAST_TRAIN_CONFIG)
+        original_validate = KeywordIntentClassifier._validate_keyword_map
+        KeywordIntentClassifier._validate_keyword_map = _tolerant_keyword_map
+        try:
+            model_file = train(
+                domain='tests/testing_data/model_tester/domain.yml',
+                config=config_path,
+                training_files=['tests/testing_data/model_tester/nlu_with_entities/nlu.yml',
+                                'tests/testing_data/model_tester/training_stories_success/stories.yml'],
+                output=model_path,
+                core_additional_arguments={"augmentation_factor": 0},
+                force_training=True
+            ).model
+        finally:
+            KeywordIntentClassifier._validate_keyword_map = original_validate
         ModelProcessor.set_training_status(
             bot=bot,
             user="test",

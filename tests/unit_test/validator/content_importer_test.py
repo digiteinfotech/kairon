@@ -56,7 +56,7 @@ class TestContentImporter:
 
         cognition_processor = CognitionDataProcessor()
         response = cognition_processor.save_cognition_schema(
-            schema_request.dict(),
+            schema_request.model_dump(),
             user,
             bot,
         )

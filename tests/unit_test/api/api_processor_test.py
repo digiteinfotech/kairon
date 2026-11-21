@@ -4,6 +4,7 @@ import json
 import os
 import time
 import uuid
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import urljoin
@@ -2299,7 +2300,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -2335,7 +2336,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -2382,7 +2383,7 @@ class TestAccountProcessor:
             "path": "/",
             'query_string': b'code=4/0AX4XfWh-AOKSPocewBBm0KAE_5j1qGNNWJAdbRcZ8OYKUU1KlwGqx_kOz6yzlZN-jUBi0Q&state={LoginSSOFactory.linkedin_sso.state}&scope=email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid&authuser=0&hd=digite.com&prompt=none',
             "headers": Headers({
-                'cookie': f"ssostate={LoginSSOFactory.get_client('linkedin').sso_client.state}",
+                'cookie': "sso_state={LoginSSOFactory.linkedin_sso.state}",
                 'host': 'www.example.org',
                 'accept': 'application/json',
 
@@ -2801,96 +2802,113 @@ class TestAccountProcessor:
         assert result is None
 
     def test_validate_confirm_password(cls):
+        info = SimpleNamespace(data={"password": SecretStr("Winte@20")})
         with pytest.raises(ValueError, match="Password and Confirm Password does not match"):
-            RegisterAccount.validate_confirm_password(SecretStr("Owners@4"), {"password": SecretStr("Winte@20")})
+            RegisterAccount.validate_confirm_password(SecretStr("Owners@4"), info)
 
     def test_validate_password(cls):
         with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 number\nMissing 1 special letter"):
-            Password.validate_password(SecretStr("Owners"), {})
+            Password.validate_password(SecretStr("Owners"))
 
     def test_validate_password_empty(cls):
         with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 uppercase letter\n"
                                              "Missing 1 number\n"
                                              "Missing 1 special letter"):
-            Password.validate_password(SecretStr(""), {})
+            Password.validate_password(SecretStr(""))
 
     def test_validate_password_None(cls):
         with pytest.raises(ValueError, match="Password length must be 10\n"
                                              "Missing 1 number\nMissing 1 special letter"):
-            Password.validate_password(SecretStr(None), {})
+            Password.validate_password(SecretStr(None))
+
+    def _names_account(self, first_name, last_name):
+        return RegisterAccount.model_construct(
+            email="user@example.com",
+            first_name=first_name,
+            last_name=last_name,
+            password=SecretStr("unused"),
+            confirm_password=SecretStr("unused"),
+            account="acct",
+            accepted_privacy_policy=True,
+            accepted_terms=True,
+            accepted_ai_guidelines=True,
+        )
 
     def test_validate_names_empty_fields(self):
-        values = {"first_name": "", "last_name": " "}
+        account = self._names_account("", " ")
         with pytest.raises(ValueError, match="First name and last name cannot be empty or blank spaces."):
-            RegisterAccount.validate_names(values)
+            RegisterAccount.validate_names(account)
 
     def test_validate_names_invalid_chars(self):
-        values = {"first_name": "Invalid@Name", "last_name": "Last#Name"}
+        account = self._names_account("Invalid@Name", "Last#Name")
         with pytest.raises(ValueError,
                            match="First name and last name can only contain letters, numbers, spaces and underscores."):
-            RegisterAccount.validate_names(values)
+            RegisterAccount.validate_names(account)
 
     def test_validate_names_valid(self):
-        values = {"first_name": "ValidName_123", "last_name": "Last Name_123"}
-        result = RegisterAccount.validate_names(values)
-        assert result["first_name"] == "ValidName_123"
-        assert result["last_name"] == "Last Name_123"
+        account = self._names_account("ValidName_123", "Last Name_123")
+        result = RegisterAccount.validate_names(account)
+        assert result.first_name == "ValidName_123"
+        assert result.last_name == "Last Name_123"
 
     def test_check(cls):
+        params = HttpActionParameters.model_construct(
+            key="key", value=None, parameter_type="key_vault", encrypt=False
+        )
         with pytest.raises(ValueError, match="Provide key from key vault as value"):
-            HttpActionParameters.check({"parameter_type": "key_vault", "key": "key"})
+            HttpActionParameters.check(params)
 
     def test_validate_organization_empty(self):
         with pytest.raises(ValueError, match="Organization can not be empty"):
-            IDPConfig.validate_organization("", {})
+            IDPConfig.validate_organization("")
 
     def test_validate_organization(self):
-        result = IDPConfig.validate_organization("NXT", {})
+        result = IDPConfig.validate_organization("NXT")
         assert result == "NXT"
 
     def test_validate_organization_None(self):
         with pytest.raises(ValueError, match="Organization can not be empty"):
-            IDPConfig.validate_organization(None, {})
+            IDPConfig.validate_organization(None)
 
     def test_validate_ws_url_empty(cls):
         with pytest.raises(ValueError, match="url can not be empty"):
-            EventConfig.validate_ws_url("", {})
+            EventConfig.validate_ws_url("")
 
     def test_validate_ws_url_none_value(cls):
         config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
         with pytest.raises(ValueError, match="url can not be empty"):
-            result = config.validate_ws_url(None, {})
+            result = config.validate_ws_url(None)
             assert result is None
 
     def test_validate_ws_url(cls):
         config = EventConfig(ws_url="ws_url", headers={"headers": "Headers"}, method="method")
-        result = config.validate_ws_url("https://www.google.com", {})
+        result = config.validate_ws_url("https://www.google.com")
         assert result == "https://www.google.com"
 
     def test_validate_headers_empty(cls):
-        result = EventConfig.validate_headers("", {})
+        result = EventConfig.validate_headers("")
         assert result == {}
 
     def test_validate_headers(cls):
-        result = EventConfig.validate_headers({"headers": "Headers"}, {})
+        result = EventConfig.validate_headers({"headers": "Headers"})
         assert result == {"headers": "Headers"}
 
     def test_validate_headers_None(cls):
-        result = EventConfig.validate_headers(None, {})
+        result = EventConfig.validate_headers(None)
         assert result == {}
 
     def test_validate_config_empty(cls):
-        result = IDPConfig.validate_config("", {})
+        result = IDPConfig.validate_config("")
         assert result == {}
 
     def test_validate_config(cls):
-        result = IDPConfig.validate_config({}, {})
+        result = IDPConfig.validate_config({})
         assert result == {}
 
     def test_validate_config_None(cls):
-        result = IDPConfig.validate_config(None, {})
+        result = IDPConfig.validate_config(None)
         assert result == {}
 
     def test_get_steps(cls):

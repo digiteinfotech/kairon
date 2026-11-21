@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Text, Dict, List, Optional, Any
 from urllib.parse import urlencode
 
@@ -9,6 +8,7 @@ from loguru import logger
 from mongoengine import DoesNotExist
 from mongoengine.errors import NotUniqueError, ValidationError
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.data_objects import (
     CustomerDetails,
@@ -196,7 +196,7 @@ class CustomerOrderProcessor:
     def delete_customer(bot: Text, sender_id: str) -> None:
         plain_id = CustomerOrderProcessor._decrypt(sender_id)
         updated = CustomerDetails.objects(bot=bot, sender_id=plain_id).update_one(
-            set__status=False, set__updated_at=datetime.utcnow()
+            set__status=False, set__updated_at=utc_now()
         )
         if not updated:
             raise AppException("Customer not found")

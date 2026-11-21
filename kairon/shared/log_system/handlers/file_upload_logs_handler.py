@@ -1,12 +1,13 @@
+from kairon.shared.clock import utc_now
 from kairon.shared.log_system.base import BaseLogHandler
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 
 class FileUploadHandler(BaseLogHandler):
 
     def get_logs_and_count(self):
         query = {"bot": self.bot}
-        query["start_timestamp__gte"] = datetime.utcnow() - timedelta(days=30)
+        query["start_timestamp__gte"] = utc_now() - timedelta(days=30)
         sort_field = "-timestamp" if "timestamp" in self.doc_type._fields else "-start_timestamp"
         logs_cursor = self.doc_type.objects(**query).order_by(sort_field).skip(self.start_idx).limit(
             self.page_size).exclude("id")

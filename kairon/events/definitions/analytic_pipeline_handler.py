@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+from kairon.shared.clock import utc_now
 from kairon.events.definitions.scheduled_base import ScheduledEventsBase
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import AnalyticsPipelineConfig
@@ -40,7 +41,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
         config = None
         status = EVENT_STATUS.INITIATED
         exception = None
-        start_time = datetime.utcnow()
+        start_time = utc_now()
         end_time = None
         pipeline_name = None
         callback_name = None
@@ -77,7 +78,7 @@ class AnalyticsPipelineEvent(ScheduledEventsBase):
             exception = str(e)
 
         finally:
-            end_time = datetime.utcnow()
+            end_time = utc_now()
             AnalyticsPipelineProcessor.add_event_log(
                 event_id=event_id,
                 bot = self.bot,

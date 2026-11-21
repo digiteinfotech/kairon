@@ -1,6 +1,6 @@
 from mongoengine import Document, StringField, DictField, DateTimeField, ValidationError, ListField, BooleanField
-from datetime import datetime
 
+from kairon.shared.clock import utc_now
 from kairon.shared.account.processor import AccountProcessor
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -17,7 +17,7 @@ class LiveAgents(Auditlog):
     trigger_on_actions = ListField(StringField(), default=[])
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
 
@@ -45,7 +45,7 @@ class LiveAgentMetadata(Document):
     sender_id = StringField(required=True)
     metadata = DictField(required=True)
     bot = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "agent_type")]}]}
 

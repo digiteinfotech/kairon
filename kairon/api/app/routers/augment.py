@@ -35,7 +35,7 @@ async def questions(
     Generates question from text or url
     """
     response = requests.post(
-        Utility.environment["augmentation"]["question_generation_url"], json=request_data.dict()
+        Utility.environment["augmentation"]["question_generation_url"], json=request_data.model_dump()
     )
     return response.json()
 
@@ -44,6 +44,6 @@ async def questions(
 async def gpt_paraphrases(request_data: GPTRequest,  current_user: User = Depends(Authentication.get_current_user)):
     """Generates variations for given list of sentences/questions using GPT3"""
     response = requests.post(
-        Utility.environment["augmentation"]["paraphrase_gpt_url"], json=request_data.dict()
+        Utility.environment["augmentation"]["paraphrase_gpt_url"], json=request_data.model_dump()
     )
     return response.json()

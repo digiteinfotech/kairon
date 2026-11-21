@@ -257,7 +257,9 @@ def test_run_pyscript_with_source_code_empty():
     actual = response.json()
     assert response.status_code == 422
     assert actual == {
-        'detail': [{'loc': ['body', 'source_code'], 'msg': 'source_code is required', 'type': 'value_error'}]}
+        'detail': [{'type': 'value_error', 'loc': ['body', 'source_code'],
+                    'msg': 'Value error, source_code is required', 'input': '',
+                    'ctx': {'error': {}}}]}
 
 
 def test_run_pyscript_with_source_code_none():
@@ -274,8 +276,8 @@ def test_run_pyscript_with_source_code_none():
     actual = response.json()
     assert response.status_code == 422
     assert actual == {
-        'detail': [{'loc': ['body', 'source_code'],
-                    'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}]}
+        'detail': [{'type': 'string_type', 'loc': ['body', 'source_code'],
+                    'msg': 'Input should be a valid string', 'input': None}]}
 
 
 def test_run_pyscript():

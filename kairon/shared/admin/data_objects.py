@@ -1,8 +1,8 @@
-from datetime import datetime
 from mongoengine import (
     StringField,
     DateTimeField, ValidationError, ListField, DictField
 )
+from kairon.shared.clock import utc_now
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
 from kairon.shared.utils import Utility
@@ -16,7 +16,7 @@ class BotSecrets(Auditlog):
     value = StringField(required=True)
     bot = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["bot", ("bot", "secret_type")]}]}
 
@@ -37,7 +37,7 @@ class LLMMetadata(Auditlog):
     description = StringField()
     properties = DictField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {
         "collection": "l_l_m_metadata",
@@ -60,7 +60,7 @@ class LLMSecret(Auditlog):
     token = StringField()
     bot = StringField()
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {
         "indexes": [

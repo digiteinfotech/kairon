@@ -1,4 +1,4 @@
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 
 class TranslationRequest(BaseModel):
@@ -6,8 +6,9 @@ class TranslationRequest(BaseModel):
     translate_responses: bool = True
     translate_actions: bool = False
 
-    @validator("dest_lang")
-    def validate_dest_lang(cls, f, values, **kwargs):
+    @field_validator("dest_lang")
+    @classmethod
+    def validate_dest_lang(cls, f):
         from kairon.shared.utils import Utility
 
         if Utility.check_empty_string(f):

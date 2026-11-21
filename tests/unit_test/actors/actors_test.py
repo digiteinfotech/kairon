@@ -14,6 +14,7 @@ from mongoengine import connect
 from orjson import orjson
 from pykka import ActorDeadError
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import DatabaseAction, HttpActionConfig
 from kairon.shared.actions.utils import ActionUtility
@@ -1543,7 +1544,7 @@ async def test_get_media_content(mock_get_buffer):
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1559,7 +1560,7 @@ async def test_get_media_content(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     expected_media_bytes = b'%IMG-1.4 mock content'
@@ -1648,7 +1649,7 @@ async def test_get_media_content_access_token_not_found():
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1664,7 +1665,7 @@ async def test_get_media_content_access_token_not_found():
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     with pytest.raises(AppException) as exc_info:
@@ -1703,7 +1704,7 @@ async def test_get_media_content_file_stream_not_found(mock_get_buffer):
         bot=bot,
         user="mahesh.sattala@digite.com",
         whatsapp="360dialog",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     Channels(
@@ -1719,7 +1720,7 @@ async def test_get_media_content_file_stream_not_found(mock_get_buffer):
             "bsp_type": "360dialog"
         },
         user="test@example.com",
-        timestamp=datetime.utcnow()
+        timestamp=utc_now()
     ).save()
 
     mock_get_buffer.return_value = (None, None, None)

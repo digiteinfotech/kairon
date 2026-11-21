@@ -50,7 +50,7 @@ Build the application image from the repository root:
 docker build -f docker/Dockerfile -t kairon .
 ```
 
-The image installs Python 3.10 and the locked dependencies with [uv](https://docs.astral.sh/uv/). PyTorch and TensorFlow are the CPU builds. `docker/docker-compose.yml` runs the API, chat, action, history, events, worker, and script services from this `kairon` image.
+The image installs Python 3.12 and the locked dependencies with [uv](https://docs.astral.sh/uv/). PyTorch is the CPU build. TensorFlow comes from the Rasa fork and runs on CPU unless the CUDA extra is installed. `docker/docker-compose.yml` runs the API, chat, action, history, events, worker, and script services from this `kairon` image.
 
 Please do the below changes in **docker/docker-compose.yml**
 
@@ -81,7 +81,7 @@ and set google analytics tracking id
 
 ## Installation
 
-1. Kairon requires Python 3.10 and [mongo 4.0+](https://www.mongodb.com/download-center/community). On Linux, [uv](https://docs.astral.sh/uv/) installs that Python.
+1. Kairon requires Python 3.12 and [mongo 4.0+](https://www.mongodb.com/download-center/community). On Linux, [uv](https://docs.astral.sh/uv/) installs that Python.
 
 2. Then clone this repo
 

@@ -21,8 +21,8 @@ async def register_account(register_account: RegisterAccount, background_tasks: 
     Registers a new account
     """
     Utility.validate_enable_sso_only()
-    AccountProcessor.verify_and_log_user_consent(register_account.dict())
-    user, mail, url = await AccountProcessor.account_setup(register_account.dict())
+    AccountProcessor.verify_and_log_user_consent(register_account.model_dump())
+    user, mail, url = await AccountProcessor.account_setup(register_account.model_dump())
     AccountProcessor.get_location_and_add_trusted_device(user['email'], register_account.fingerprint, request, False)
     if Utility.email_conf["email"]["enable"]:
         background_tasks.add_task(MailUtility.format_and_send_mail, mail_type='verification', email=mail, first_name=user['first_name'], url=url)
@@ -141,7 +141,7 @@ async def add_bot(request: AddBotRequest, background_tasks: BackgroundTasks,
     bot_id = await AccountProcessor.add_bot_with_template(request.name, current_user.account, current_user.get_user(),
                                                           template_name=request.from_template)
     if not Utility.check_empty_string(request.from_template):
-        background_tasks.add_task(Utility.reload_model, bot_id, current_user.email)
+        background_tasks.add_task(Utility.reload_model_in_background, bot_id, current_user.email)
     return Response(data={"bot_id": bot_id}, message="Bot created")
 
 

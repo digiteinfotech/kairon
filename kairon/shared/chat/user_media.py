@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import BinaryIO
 
@@ -14,6 +14,7 @@ from markdown_pdf import MarkdownPdf, Section
 from mongoengine import DoesNotExist
 from uuid6 import uuid7
 
+from kairon.shared.clock import utc_now
 from kairon import Utility
 from kairon.exceptions import AppException
 from kairon.shared.actions.data_objects import Actions, PromptAction
@@ -42,7 +43,7 @@ class UserMedia:
             upload_status=UserMediaUploadStatus.processing.value,
             sender_id=sender_id,
             bot=bot,
-            timestamp=datetime.utcnow(),
+            timestamp=utc_now(),
             **kwargs
         )
         user_media_data.save()
@@ -480,7 +481,7 @@ class UserMedia:
                     ],
                     "bot": bot,
                     "user": "system",
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": utc_now(),
                     "status": True,
                     "template_type": "CUSTOM",
                     "flow_tags": [FlowTagType.agentic_flow.value]
@@ -517,7 +518,7 @@ class UserMedia:
     @staticmethod
     def get_media_ids(bot: str):
         try:
-            thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+            thirty_days_ago = utc_now() - timedelta(days=30)
             media_data = UserMediaData.objects(
                 bot = bot,
                 upload_status = UserMediaUploadStatus.completed.value,

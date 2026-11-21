@@ -5,6 +5,7 @@ from bson import ObjectId
 from loguru import logger
 from mongoengine import Q, DoesNotExist
 
+from kairon.shared.clock import utc_now
 from kairon.exceptions import AppException
 from kairon.shared.data.constant import EVENT_STATUS, ModelTestingLogType, STATUSES
 from kairon.shared.data.data_objects import BotSettings
@@ -27,14 +28,14 @@ class ModelTestingLogProcessor:
                 type='common',
                 bot=bot,
                 user=user,
-                start_timestamp=datetime.utcnow()
+                start_timestamp=utc_now()
             )
         if is_augmented:
             common_data.is_augmented = is_augmented
         if event_status:
             common_data.event_status = event_status
         if event_status in {EVENT_STATUS.FAIL.value, EVENT_STATUS.COMPLETED.value}:
-            common_data.end_timestamp = datetime.utcnow()
+            common_data.end_timestamp = utc_now()
         if event_status == EVENT_STATUS.COMPLETED.value:
             common_data.status = STATUSES.PASSED.value
         if stories_result:

@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from mongoengine import (
     Document,
@@ -17,6 +16,7 @@ from mongoengine import (
 from mongoengine.errors import ValidationError
 from validators import email, ValidationError as ValidationFailure
 
+from kairon.shared.clock import utc_now
 from kairon.shared.constants import UserActivityType
 from kairon.shared.data.audit.data_objects import Auditlog
 from kairon.shared.data.signals import push_notification, auditlogger
@@ -32,7 +32,7 @@ class BotAccess(Auditlog):
     bot_account = LongField(required=True)
     user = StringField(required=True)
     accept_timestamp = DateTimeField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = StringField(
         required=True, choices=[status.value for status in ACTIVITY_STATUS]
     )
@@ -52,7 +52,7 @@ class User(Auditlog):
     onboarding_status = StringField(default=ONBOARDING_STATUS.NOT_COMPLETED.value,
                                     choices=[a_type.value for a_type in ONBOARDING_STATUS])
     onboarding_timestamp = DateTimeField(default=None)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     meta = {"indexes": [{"fields": ["$email", "$first_name", "$last_name"]}]}
 
@@ -92,7 +92,7 @@ class Bot(Auditlog):
     account = LongField(required=True)
     user = StringField(required=True)
     metadata = EmbeddedDocumentField(BotMetaData, default=BotMetaData())
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
 
     def validate(self, clean=True):
@@ -105,7 +105,7 @@ class Account(Auditlog):
     id = SequenceField(required=True, primary_key=True)
     name = StringField(required=True)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     status = BooleanField(default=True)
     license = DictField()
 
@@ -116,7 +116,7 @@ class Account(Auditlog):
 
 class UserEmailConfirmation(Document):
     email = StringField(required=True, primary_key=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     def validate(self, clean=True):
         if Utility.check_empty_string(self.email):
@@ -130,7 +130,7 @@ class Feedback(Document):
     scale = FloatField(default=5.0)
     feedback = StringField(default=None)
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["user", ("user", "-timestamp")]}]}
 
@@ -139,7 +139,7 @@ class Feedback(Document):
 class UiConfig(Auditlog):
     config = DictField(default={})
     user = StringField(required=True)
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
 
     meta = {"indexes": [{"fields": ["user"]}]}
 
@@ -175,7 +175,7 @@ class UserActivityLog(Document):
         required=True, choices=[a_type.value for a_type in UserActivityType]
     )
     user = StringField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     account = LongField(required=True, default=-1)
     bot = StringField()
     message = ListField(StringField(), default=None)
@@ -190,7 +190,7 @@ class TrustedDevice(Auditlog):
     user = StringField(required=True)
     is_confirmed = BooleanField(default=False)
     geo_location = DictField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     confirmation_timestamp = DateTimeField(default=None)
     status = BooleanField(default=True)
 
@@ -203,7 +203,7 @@ class Organization(Auditlog):
     user = StringField(required=True)
     account = ListField(required=True)
     tags = ListField()
-    timestamp = DateTimeField(default=datetime.utcnow)
+    timestamp = DateTimeField(default=utc_now)
     create_user = BooleanField(default=True)
     only_sso_login = BooleanField(default=False)
     meta = {"indexes": [{"fields": ["account", "name"]}]}

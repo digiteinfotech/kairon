@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, date
 
 from mongoengine import Document
 
+from kairon.shared.clock import utc_now
 from kairon.shared.actions.data_objects import ActionServerLogs
 from kairon.shared.callback.data_objects import CallbackLog
 from kairon.shared.catalog_sync.data_objects import CatalogSyncLogs
@@ -97,8 +98,8 @@ class BaseLogHandler(ABC):
     @staticmethod
     def get_default_dates(kwargs, logs):
         ist_offset = timedelta(hours=5, minutes=30)
-        from_date = kwargs.pop("from_date", None) or (datetime.utcnow() - timedelta(days=30))
-        to_date = kwargs.pop("to_date", None) if kwargs.get("to_date") else datetime.utcnow()
+        from_date = kwargs.pop("from_date", None) or (utc_now() - timedelta(days=30))
+        to_date = kwargs.pop("to_date", None) if kwargs.get("to_date") else utc_now()
         if isinstance(from_date, date) and not isinstance(from_date, datetime):
             from_date = datetime.combine(from_date, datetime.min.time())
         if isinstance(to_date, date) and not isinstance(to_date, datetime):
