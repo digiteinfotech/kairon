@@ -22,7 +22,7 @@ dependencies = [
     "passlib==1.7.4",
     "bcrypt==4.3.0",
     "json2html==1.3.0",
-    "google-api-python-client==2.143.0",
+    "google-api-python-client==2.201.0",
     "jira==3.8.0",
     "pipedrive-python-lib==1.2.3",
     "google-cloud-translate==3.16.0",
