@@ -206,6 +206,7 @@ class CRMInvitation(Auditlog):
     accepted_at = DateTimeField()
     cancelled_at = DateTimeField()
     company_assigned_at = DateTimeField()
+    last_reconciled_at = DateTimeField()    # last time the safety-net sweep looked at it; the sweep goes oldest-first
     last_error = StringField()
 
     meta = {

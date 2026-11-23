@@ -339,6 +339,7 @@ crm:
     app_name: ${BENCH_APP_NAME:"frappe"}
     invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
     reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}
+    reconcile_batch_size: ${BENCH_RECONCILE_BATCH_SIZE:50}   # pending invitations the safety-net sweep examines per run
   # Optional fail-closed gate for CRM provisioning / user management: comma separated emails or "@domain" suffixes.
   # Unset => the per-bot ADMIN_ACCESS rule alone applies.
   staff_allowlist: ${CRM_STAFF_ALLOWLIST}
@@ -354,6 +355,7 @@ crm:
     lookback_seconds: ${CRM_LEAD_LOOKBACK_SECONDS:900}
     max_attempts: ${CRM_LEAD_MAX_ATTEMPTS:5}
     max_transcript_chars: ${CRM_LEAD_MAX_TRANSCRIPT_CHARS:6000}
+    pass_budget_seconds: ${CRM_LEAD_PASS_BUDGET:240}   # stop starting new bots after this long in one scheduled pass
 
 store_page:
   url: ${STORE_PAGE_URL}

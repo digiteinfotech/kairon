@@ -12,7 +12,7 @@ import socket
 import time
 import uuid
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Text
+from typing import Any, Dict, List, Optional, Text
 
 from loguru import logger
 from mongoengine import NotUniqueError
@@ -37,7 +37,8 @@ DEFAULTS = {
     "max_history_turns": 40,
     "max_transcript_chars": 6000,
     "lease_seconds": 600,
-    "time_budget_seconds": 420,     # stop starting new analyses so one platform-job pass stays bounded
+    "time_budget_seconds": 420,     # per bot: stop starting new analyses for that bot after this long
+    "pass_budget_seconds": 240,     # whole pass: stop starting new bots after this long (the job runs every 5 minutes)
     "max_attempts": 5,
     "backoff_base_seconds": 60,
     "backoff_cap_seconds": 3600,
@@ -63,10 +64,16 @@ class LeadAnalysisPipeline:
     # ------------------------------------------------------------------ cycle
 
     def run_cycle(self) -> Dict[Text, Any]:
-        summary: Dict[Text, Any] = {"bots": 0, "skipped_leased": 0, "failed_bots": 0, "analysed": 0, "qualified": 0,
-                                    "dispatched": 0, "errors": 0}
-        bots = [c.bot for c in CRMLeadQualificationConfig.objects(enabled=True).only("bot")]
-        for bot in bots:
+        summary: Dict[Text, Any] = {"bots": 0, "skipped_leased": 0, "failed_bots": 0, "deferred_bots": 0, "analysed": 0,
+                                    "qualified": 0, "dispatched": 0, "errors": 0}
+        bots = self._bots_least_recently_run_first()
+        started = time.monotonic()
+        for position, bot in enumerate(bots):
+            if time.monotonic() - started > cfg("pass_budget_seconds"):
+                # The pass is bounded so the invitation sweeps that follow it start on time and the shared event actor is
+                # not held for minutes. Bots not started keep the oldest `last_run_at`, so they go first next pass.
+                summary["deferred_bots"] = len(bots) - position
+                break
             try:
                 stats = self.run_bot(bot)
             except Exception as e:  # one tenant must never stop the others
@@ -81,6 +88,17 @@ class LeadAnalysisPipeline:
             for key in ("analysed", "qualified", "dispatched", "errors"):
                 summary[key] += stats.get(key, 0)
         return summary
+
+    @staticmethod
+    def _bots_least_recently_run_first() -> List[Text]:
+        """
+        The order bots are started in: never-run first, then the one that ran longest ago. Because a bot that is analysed moves
+        to the back (its `last_run_at` is refreshed) and bots left over when the pass budget ends stay at the front, every
+        bot gets a turn however many there are, and a slow bot at the start cannot starve the others.
+        """
+        bots = [c.bot for c in CRMLeadQualificationConfig.objects(enabled=True).only("bot")]
+        last_run = {s.bot: s.last_run_at for s in CRMLeadAnalysisState.objects(bot__in=bots).only("bot", "last_run_at")}
+        return sorted(bots, key=lambda b: (last_run.get(b) or datetime.min, b))
 
     def _acquire(self, bot: Text) -> bool:
         now = datetime.utcfromtimestamp(self.now_fn())

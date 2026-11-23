@@ -435,6 +435,9 @@ class CRMProcessor:
             "message": f"Company '{company_name}' and its CRM site were removed successfully.",
         }
 
+    # Pending invitations the safety-net sweep examines per run (config: crm.bench.reconcile_batch_size).
+    RECONCILE_BATCH_SIZE = 50
+
     # States in which a run is already underway or finished: onboarding again must not touch the live site.
     SETTLED_STATES = (CRMOnboardingStatus.COMPLETED.value, CRMOnboardingStatus.UPGRADING_TO_TIER_2.value)
 
@@ -749,8 +752,16 @@ class CRMProcessor:
         if bot:
             query = query.filter(bot=bot)
 
-        pending = list(query)
-        summary = {"checked": len(pending), "assigned": 0, "expired": 0, "cancelled": 0, "errors": 0}
+        # One run looks at a bounded batch, oldest-looked-at first (never-checked first), so a long pending list cannot make
+        # a run outlast its schedule or queue behind the shared event actor. Every picked invitation is stamped before it is
+        # processed, so one that cannot be resolved (or whose site is gone) moves to the back and cannot block the others.
+        batch_size = max(1, int(bench_config.get("reconcile_batch_size") or CRMProcessor.RECONCILE_BATCH_SIZE))
+        total_pending = query.count()
+        pending = list(query.order_by("last_reconciled_at", "invited_at").limit(batch_size))
+        if pending:
+            CRMInvitation.objects(id__in=[i.id for i in pending]).update(set__last_reconciled_at=datetime.datetime.utcnow())
+        summary = {"checked": len(pending), "deferred": max(total_pending - len(pending), 0),
+                   "assigned": 0, "expired": 0, "cancelled": 0, "errors": 0}
 
         # Group by site to minimise client instantiation
         sites: dict = {}
