@@ -521,11 +521,7 @@ class CallbackScriptUtility:
 
     @staticmethod
     def process_instruction(data_list, prompt, operation_type, model_id, llm_type: str = "openrouter",
-                            bot: str = None, user: str = None, system_prompt: str = None, timeout: float = None):
-        """
-        The Analytics Pipeline's LLM entry point (completion and embedding through the LLM server).
-        `system_prompt` and `timeout` are optional and only used when given, so existing scripts behave as before.
-        """
+                            bot: str = None, user: str = None):
         from kairon.shared.admin.data_objects import LLMSecret
 
         doc = LLMSecret.objects(llm_type="openrouter").first()
@@ -557,19 +553,15 @@ class CallbackScriptUtility:
         else:
             text_input = data_list[0]
             final_prompt = prompt.format(document=text_input)
-            messages = [{"role": "user", "content": final_prompt}]
-            if system_prompt:
-                messages.insert(0, {"role": "system", "content": system_prompt})
             payload = {
                 "user": user,
                 "hyperparameters": {"temperature": 0, "model": model_id},
-                "messages": messages
+                "messages": [{"role": "user", "content": final_prompt}]
             }
             llm_server_url = Utility.environment['llm']['url']
-            request_kwargs = {"timeout": timeout} if timeout is not None else {}
             response = requests.request(method="POST",
                                         url=f"{llm_server_url}/{bot}/completion/{llm_type}",
-                                        json=payload, **request_kwargs)
+                                        json=payload)
 
             response.raise_for_status()
             response = response.json()

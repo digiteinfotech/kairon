@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Text
 
 from pydantic import BaseModel, ValidationError, validator, Extra
 
+from kairon.crm.analytics.callback_lambda import run_script
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 
@@ -29,7 +30,12 @@ EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-']+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*
 PHONE_CHARS_RE = re.compile(r"^\+?[0-9][0-9 ()\-]{5,18}[0-9]$")
 NAME_RE = re.compile(r"^[^\W\d_][\w .,'\-]{0,59}$", re.UNICODE)
 MAX_REASON = 300
-ANALYTICS_LLM_TYPE = "openrouter"      # the provider Analytics Pipelines use (CallbackScriptUtility.process_instruction)
+ANALYTICS_LLM_TYPE = "openrouter"      # the provider Analytics Pipelines use (process_instruction)
+# What runs on the callback Lambda: `process_instruction` is defined there (repo pyscript-callback); the script only calls it.
+PROCESS_INSTRUCTION_SCRIPT = (
+    "bot_response = process_instruction(data_list, prompt, operation_type, model_id, llm_type, "
+    "user=user, system_prompt=system_prompt, timeout=timeout)"
+)
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 
@@ -249,14 +255,14 @@ def verify_against_transcript(result: QualificationResult, user_texts: List[Text
 
 def invoke_llm(bot: Text, user: Text, messages: List[Dict[Text, Text]]) -> Any:
     """
-    Calls the platform's existing Analytics Pipeline LLM: `CallbackScriptUtility.process_instruction`, the same function
-    PyScript analytics scripts use. It resolves the provider (`openrouter`) and talks to the LLM server exactly as they
-    do; CRM adds no provider, key or endpoint of its own. Only the model id is CRM-configurable (`crm.lead_analysis.model`).
+    Asks the platform's Analytics Pipeline LLM through the callback Lambda, where `process_instruction` lives (the same
+    function PyScript analytics scripts use). The Lambda resolves the provider (`openrouter`) and talks to the LLM server;
+    CRM adds no provider, key or endpoint of its own. Only the model id is CRM-configurable (`crm.lead_analysis.model`).
+    The secret and model are checked here first so a misconfiguration gives a clear message and no Lambda call is spent.
     """
     from kairon.shared.admin.data_objects import LLMSecret
-    from kairon.shared.pyscript.callback_pyscript_utils import CallbackScriptUtility
     cfg = _cfg()
-    secret = LLMSecret.objects(llm_type=ANALYTICS_LLM_TYPE).first()   # the same lookup process_instruction makes
+    secret = LLMSecret.objects(llm_type=ANALYTICS_LLM_TYPE).first()
     if not secret:
         raise AppException(f"The platform LLM '{ANALYTICS_LLM_TYPE}' used by Analytics Pipelines is not configured.")
     model = cfg.get("model") or DEFAULT_MODEL
@@ -265,12 +271,13 @@ def invoke_llm(bot: Text, user: Text, messages: List[Dict[Text, Text]]) -> Any:
                            f"Set CRM_LEAD_LLM_MODEL to one of the platform's models.")
     system_prompt = next((m["content"] for m in messages if m["role"] == "system"), None)
     user_content = next(m["content"] for m in messages if m["role"] == "user")
+    timeout = int(cfg.get("llm_timeout_seconds") or 60)
+    predefined_objects = {
+        "bot": bot, "user": user, "data_list": [user_content], "prompt": "{document}", "operation_type": "completion",
+        "model_id": model, "llm_type": ANALYTICS_LLM_TYPE, "system_prompt": system_prompt, "timeout": timeout,
+    }
     try:
-        return CallbackScriptUtility.process_instruction(
-            data_list=[user_content], prompt="{document}", operation_type="completion",
-            model_id=model, llm_type=ANALYTICS_LLM_TYPE, bot=bot, user=user,
-            system_prompt=system_prompt, timeout=int(cfg.get("llm_timeout_seconds") or 60),
-        )
+        return run_script(PROCESS_INSTRUCTION_SCRIPT, predefined_objects, timeout)
     except AppException:
         raise
     except Exception as e:

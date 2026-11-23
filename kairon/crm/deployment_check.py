@@ -33,13 +33,13 @@ def run_checks() -> List[Dict]:
     except Exception as e:
         checks.append(_check("platform_llm_secret", False, f"could not read the database: {type(e).__name__}"))
 
-    llm_url = str(env.get("llm", {}).get("url") or "")
-    loopback = "localhost" in llm_url or "127.0.0.1" in llm_url
-    # Conversation text is sent to this server, so it must be remote-capable (not loopback) and encrypted in transit.
-    checks.append(_check("llm_server_url", bool(llm_url) and not loopback and llm_url.lower().startswith("https://"),
-                         "LLM server URL is " + ("unset" if not llm_url else "a loopback address (not valid in ECS)" if loopback
-                                                 else "set" if llm_url.lower().startswith("https://")
-                                                 else "not https:// (conversation text would travel unencrypted)"), required=False))
+    # The qualifier calls `process_instruction` on the callback Lambda, so lead analysis cannot run without it. (The Lambda talks
+    # to the LLM server; its address is the Lambda's own setting, not Kairon's.)
+    from kairon.crm.analytics.callback_lambda import callback_lambda_name
+    lambda_name = callback_lambda_name()
+    checks.append(_check("callback_lambda", bool(lambda_name),
+                         "PYSCRIPT_TASK_DEFINITION (the callback Lambda that runs process_instruction) is " +
+                         ("set" if lambda_name else "NOT set; lead qualification cannot call the LLM")))
 
     # 2a. Tenant hostnames must be unique, and the index that enforces it should exist.
     try:
