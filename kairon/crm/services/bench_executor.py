@@ -46,11 +46,14 @@ class BenchExecutor:
             bot=bot or company_name
         )
 
-    def drop_site(self, site_name: str, container_name: str = None, idempotency_key: str = None, runner=None):
+    def drop_site(self, site_name: str, container_name: str = None, idempotency_key: str = None, runner=None,
+                  allow_directory_fallback: bool = False):
         """
         Removes a tenant site and its database (no backup). Raises AppException when the site could not be removed.
         Shared by rollback of a failed provisioning run and by tenant teardown. If `drop-site` cannot run (e.g. the
-        database itself is the problem), the site directory is removed so the name can be provisioned again.
+        database itself is the problem) and `allow_directory_fallback` is set (provisioning rollback only), the site
+        directory is removed so the name can be provisioned again. Teardown leaves it unset, so it raises and the tenant
+        record is kept rather than leaving an orphaned database behind.
         """
         bench_config = Utility.environment.get("crm", {}).get("bench", {})
         runner = runner or get_bench_runner()
@@ -69,6 +72,8 @@ class BenchExecutor:
         if drop.returncode == 0:
             logger.info(f"Removed site {site_name}.")
             return
+        if not allow_directory_fallback:
+            raise AppException(f"Could not remove site {site_name}: drop-site failed.")
         removed = run_docker(["docker", "exec", container, "rm", "-rf", f"sites/{site_name}"],
                                  capture_output=True, text=True, timeout=60)
         if removed.returncode != 0:

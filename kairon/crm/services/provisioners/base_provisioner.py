@@ -124,7 +124,8 @@ class BaseProvisioner(ABC):
             return
         try:
             BenchExecutor().drop_site(site_name, self.container_name,
-                                      f"{self.provisioning_id or self._run_id}:drop_site:{site_name}", self.runner)
+                                      f"{self.provisioning_id or self._run_id}:drop_site:{site_name}", self.runner,
+                                      allow_directory_fallback=True)
             logger.info(f"[{label}] Rolled back partially created site {site_name}.")
         except Exception as e:
             logger.error(f"[{label}] Could not roll back partial site {site_name}: {type(e).__name__}")
@@ -300,10 +301,18 @@ class BaseProvisioner(ABC):
                 )
                 tar_out.stdout.close()
                 tar_in.communicate(timeout=15)
-                run_docker([
-                    "docker", "exec", frontend_container, "ln", "-sfn",
-                    "/home/frappe/frappe-bench/apps/crm/crm/public", "/home/frappe/frappe-bench/assets/crm"
-                ], capture_output=True, timeout=15)
+                tar_out.wait(timeout=15)
+                if tar_out.returncode != 0 or tar_in.returncode != 0:
+                    logger.error(f"[BaseProvisioner] Frontend asset sync failed: tar exit codes "
+                                 f"{tar_out.returncode}/{tar_in.returncode}; the CRM frontend may be broken.")
+                else:
+                    link = run_docker([
+                        "docker", "exec", frontend_container, "ln", "-sfn",
+                        "/home/frappe/frappe-bench/apps/crm/crm/public", "/home/frappe/frappe-bench/assets/crm"
+                    ], capture_output=True, timeout=15)
+                    if link.returncode != 0:
+                        logger.error(f"[BaseProvisioner] Frontend asset link failed (exit {link.returncode}); "
+                                     "the CRM frontend may be broken.")
             except Exception as fe_err:
                 logger.warning(f"[BaseProvisioner] Frontend asset sync warning: {fe_err}")
 

@@ -42,8 +42,7 @@ class ActionERPNextCRMLeadQualified(ActionsBase):
     """
 
     # Used whenever the event could not be delivered (exception or a rejecting webhook): never claims it was passed on.
-    NOTIFY_FAILED_RESPONSE = ("I've noted your details, but there was an issue notifying our sales team -- "
-                              "someone will still follow up.")
+    NOTIFY_FAILED_RESPONSE = "I've noted your details, but there was an issue notifying our sales team."
 
     # Not a KaironSystemSlots enum member: add_system_required_slots() bulk-provisions
     # every enum member for every bot unconditionally, which would leak this

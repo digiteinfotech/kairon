@@ -423,9 +423,12 @@ class CRMProcessor:
             BenchExecutor().drop_site(record.site_name)
         site_name = record.site_name
         record.delete()
-        CRMInvitation.objects(bot=bot).delete()
-        for model in (CRMLeadQualificationConfig, CRMLeadPromptRevision, CRMLeadAnalysisState, CRMLeadAnalysisRecord):
-            model.objects(bot=bot).delete()
+        if site_name:
+            CRMInvitation.objects(bot=bot, site_name=site_name).delete()
+        # Lead-qualification data belongs to the bot, so it goes only with the bot's last company record.
+        if not CRMClientDetails.objects(bot=bot).first():
+            for model in (CRMLeadQualificationConfig, CRMLeadPromptRevision, CRMLeadAnalysisState, CRMLeadAnalysisRecord):
+                model.objects(bot=bot).delete()
         logger.info(f"[CRMProcessor] Tenant torn down: bot={bot}, site={site_name}")
         return {
             "success": True,
@@ -460,6 +463,7 @@ class CRMProcessor:
 
         # 1. Save or get the initial CRMClientDetails document
         existing = CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).first()
+        email_changed = False
         if existing and existing.crm_admin_email != crm_admin_email:
             # Once the administrator account exists it is managed through user management, not re-onboarding.
             if existing.onboarding_status == CRMOnboardingStatus.COMPLETED.value or (
@@ -469,8 +473,7 @@ class CRMProcessor:
                 raise AppException(
                     "This tenant already has a CRM administrator. Use user management to change administrators."
                 )
-            existing.crm_admin_email = crm_admin_email
-            existing.save()
+            email_changed = True
         if existing and existing.onboarding_status in CRMProcessor.SETTLED_STATES:
             return {"status": existing.onboarding_status, "provisioning_id": None}
         if not existing:
@@ -510,6 +513,10 @@ class CRMProcessor:
             raise AppException("Provisioning workflow is already in progress for this company.")
 
         logger.info(f"[{provisioning_id}] Atomic lock acquired for {company_name}")
+        if email_changed:
+            # Saved only now: a request refused for the lock must not change the stored owner email.
+            CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).update_one(
+                set__crm_admin_email=crm_admin_email)
         status = existing.onboarding_status if existing else CRMOnboardingStatus.PENDING.value
         return {"status": status, "provisioning_id": provisioning_id}
 

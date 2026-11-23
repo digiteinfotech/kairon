@@ -55,8 +55,17 @@ class LeadQualificationProcessor:
         if config is None:
             config = CRMLeadQualificationConfig(bot=bot, prompt=prompt, version=1, user=user)
         elif config.prompt != prompt:
-            config.prompt = prompt
-            config.version = (config.version or 0) + 1
+            # Conditional on the version that was read: a concurrent save that got there first wins, and this one is
+            # refused instead of leaving the active prompt and its revision row from two different saves.
+            read_version = config.version or 0
+            # Record the text being replaced first, so no version's text exists only in the config; a failed write stops the save.
+            if config.prompt and not CRMLeadPromptRevision.objects(bot=bot, version=read_version).first():
+                CRMLeadPromptRevision(bot=bot, version=read_version, prompt=config.prompt, user=config.user or user).save()
+            claimed = CRMLeadQualificationConfig.objects(bot=bot, version=config.version).update_one(
+                set__prompt=prompt, set__version=read_version + 1)
+            if not claimed:
+                raise AppException("The prompt was changed by someone else; reload it and save again.")
+            config.reload()
         config.enabled = bool(enabled)
         config.min_confidence = float(min_confidence)
         config.user = user

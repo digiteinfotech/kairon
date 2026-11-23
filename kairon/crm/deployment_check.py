@@ -50,7 +50,7 @@ def run_checks() -> List[Dict]:
                              "`python -m kairon crm_lead_analysis ensure-indexes`" if duplicates else "no duplicate tenant site names"))
         indexed = CRMClientDetails.has_site_name_index()
         checks.append(_check("site_name_index", indexed, "unique site_name index " + ("present" if indexed else
-                             "missing: run `python -m kairon crm_lead_analysis ensure-indexes`"), required=False))
+                             "missing: run `python -m kairon crm_lead_analysis ensure-indexes`")))
     except Exception as e:
         checks.append(_check("site_name_unique", False, f"could not read the database: {type(e).__name__}"))
 

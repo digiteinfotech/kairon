@@ -45,6 +45,7 @@ class ProvisioningService:
 
     # Retryable failure states mapping to their next success state to allow resumption
     RETRYABLE_STATES = {
+        CRMOnboardingStatus.FAILED_PROJECT.value: CRMOnboardingStatus.PROJECT_CREATED.value,
         CRMOnboardingStatus.FAILED_BENCH.value: CRMOnboardingStatus.SITE_CREATED.value,
         CRMOnboardingStatus.FAILED_HEALTH.value: CRMOnboardingStatus.SITE_HEALTHY.value,
         CRMOnboardingStatus.FAILED_COMPANY.value: CRMOnboardingStatus.COMPANY_CREATED.value,
@@ -98,7 +99,7 @@ class ProvisioningService:
 
     def _phase_project_created(self, doc):
         """State: PENDING -> PROJECT_CREATED (instant setup of site_name)."""
-        if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
+        if doc.onboarding_status in (CRMOnboardingStatus.PENDING.value, CRMOnboardingStatus.FAILED_PROJECT.value):
             _, site_name = clean_site_name(doc.company_name)
             # A tenant site is addressed by name alone, so two bots must never resolve to the same one.
             clash = CRMClientDetails.objects(site_name=site_name, id__ne=doc.id).first()
@@ -385,7 +386,12 @@ class ProvisioningService:
         auth_method = "invitation_email"
 
         # 1. PENDING -> PROJECT_CREATED
-        doc = self._phase_project_created(doc)
+        try:
+            doc = self._phase_project_created(doc)
+        except Exception as e:
+            if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
+                self.update_onboarding_status(CRMOnboardingStatus.FAILED_PROJECT, str(e)[:500])
+            raise
 
         # 2. Bench Execution (Infrastructure Setup)
         try:

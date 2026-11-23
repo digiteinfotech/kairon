@@ -130,9 +130,9 @@ class CRMClientDetails(Auditlog):
 
     @classmethod
     def duplicate_site_names(cls) -> list:
-        """`[{"site_name", "count"}]` for site names used by more than one record. Records without a site name are ignored."""
+        """`[{"site_name", "count"}]` for site names used by more than one record. Records without the field are ignored (the sparse index skips them); `null` and `""` count."""
         pipeline = [
-            {"$match": {"site_name": {"$type": "string", "$ne": ""}}},
+            {"$match": {"site_name": {"$exists": True}}},
             {"$group": {"_id": "$site_name", "count": {"$sum": 1}}},
             {"$match": {"count": {"$gt": 1}}},
             {"$sort": {"_id": 1}},
@@ -141,7 +141,8 @@ class CRMClientDetails(Auditlog):
 
     @classmethod
     def has_site_name_index(cls) -> bool:
-        return cls.SITE_NAME_INDEX in cls._get_collection().index_information()
+        index = cls._get_collection().index_information().get(cls.SITE_NAME_INDEX)
+        return bool(index and index.get("unique") and index.get("sparse") and list(index.get("key") or []) == [("site_name", 1)])
 
     @classmethod
     def ensure_site_name_index(cls) -> dict:

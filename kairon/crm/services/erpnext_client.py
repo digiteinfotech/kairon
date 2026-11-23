@@ -1070,6 +1070,11 @@ frappe.db.commit()
             logger.warning("[ERPNextClient] No crm.bench.smtp server configured; tenant has no outgoing Email Account.")
             return False
         use_tls = str(smtp.get("use_tls") or "").lower() in ("1", "true", "yes")
+        try:
+            smtp_port = int(smtp.get("port") or (587 if use_tls else 25))
+        except (TypeError, ValueError):
+            logger.warning("[ERPNextClient] crm.bench.smtp port is not a number; no outgoing Email Account created.")
+            return False
         payload = {
             "email_id": smtp["email_id"],
             "email_account_name": "Notifications",
@@ -1077,7 +1082,7 @@ frappe.db.commit()
             "default_outgoing": 1,
             "enable_incoming": 0,
             "smtp_server": smtp["server"],
-            "smtp_port": int(smtp.get("port") or (587 if use_tls else 25)),
+            "smtp_port": smtp_port,
             "use_tls": 1 if use_tls else 0,
             "use_ssl": 0,
             "no_smtp_authentication": 1,
