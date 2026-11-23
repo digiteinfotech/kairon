@@ -35,6 +35,7 @@ class CRMLeadQualificationConfig(Auditlog):
     meta = {"indexes": [{"fields": ["bot"], "unique": True}]}
 
     def validate(self, clean=True):
+        super().validate(clean=clean)       # required / type / choices checks first; this override only adds to them
         prompt = (self.prompt or "").strip()
         if not prompt:
             raise ValidationError("Lead qualification prompt cannot be empty")

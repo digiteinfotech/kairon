@@ -164,6 +164,7 @@ class CRMClientDetails(Auditlog):
         return {"index": cls.SITE_NAME_INDEX, "duplicates": 0}
 
     def validate(self, clean=True):
+        super().validate(clean=clean)       # required / type / choices checks first (e.g. onboarding_status is one of the states)
         if Utility.check_empty_string(self.company_name):
             raise ValidationError("Company Name is required")
         if Utility.check_empty_string(self.abbr):
