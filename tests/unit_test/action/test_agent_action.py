@@ -1,3 +1,4 @@
+import json
 import os
 from unittest.mock import patch, MagicMock, AsyncMock
 
@@ -299,7 +300,7 @@ class TestActionAgent:
         assert action.response is None
 
 
-    # ─── formatText response ────────────────────────────────────────────────────
+    # ─── markdown response ───────────────────────────────────────────────────────
 
     async def _run(self, tracker, dispatcher, name, bot, response, **cfg):
         AgentActionConfig.objects(bot=bot, name=name).delete()
@@ -442,6 +443,67 @@ class TestActionAgent:
         await self._run(tracker, dispatcher, "env_cfg_b", "bot_env_cfg_b", ({"output": "B"}, 200, None, None),
                         agent_name="Other Agent", agent_id="other-id")
         assert [m["custom"] for m in dispatcher.messages] == [env("A"), env("B")]
+
+    # ─── markdown message ───────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_markdown_sends_one_markdown_message(self, tracker, dispatcher):
+        result, log, mail = await self._run(
+            tracker, dispatcher, "wa_md", "bot_wa_md", ({"output": "Hello"}, 200, None, None))
+        assert len(dispatcher.messages) == 1
+        message = dispatcher.messages[0]
+        assert message["custom"] == env("Hello")
+        assert not message.get("text")
+        assert len(message["custom"]["data"]) == 1
+        assert len(message["custom"]["data"][0]["children"]) == 1
+        assert result["kairon_action_response"] == "Hello"
+        assert log["bot_response"] == "Hello"
+        mail.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("raw,expected", [("a\r\n\r\nb", "a\nb"), ("**b**\n- i", "**b**\n- i"),
+                                              ("   ", "   ")])
+    async def test_markdown_markdown_data_normalized(self, tracker, dispatcher, raw, expected):
+        await self._run(tracker, dispatcher, "wa_norm", "bot_wa_norm", ({"output": raw}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env(expected)]
+
+    @pytest.mark.asyncio
+    async def test_markdown_non_string_output(self, tracker, dispatcher):
+        await self._run(tracker, dispatcher, "wa_int", "bot_wa_int", ({"output": 42}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("42")]
+
+    @pytest.mark.asyncio
+    async def test_markdown_dispatch_off_sends_nothing_slot_keeps_message(self, tracker, dispatcher):
+        result, _, _ = await self._run(tracker, dispatcher, "wa_off", "bot_wa_off",
+                                       ({"output": "Hello"}, 200, None, None), dispatch_bot_response=False)
+        assert dispatcher.messages == []
+        assert result["kairon_action_response"] == "Hello"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("response", [({"output": ""}, 200, None, None), ({}, 200, None, None),
+                                          ({"output": None}, 200, None, None)])
+    async def test_markdown_empty_output_sends_nothing(self, tracker, dispatcher, response):
+        result, log, _ = await self._run(tracker, dispatcher, "wa_empty", "bot_wa_empty", response)
+        assert dispatcher.messages == []
+        assert result["kairon_action_response"] == ""
+        assert not log["bot_response"]
+
+    @pytest.mark.asyncio
+    async def test_markdown_failure_is_plain_text_and_mails_once(self, tracker, dispatcher):
+        result, log, mail = await self._run(
+            tracker, dispatcher, "wa_fail", "bot_wa_fail", ({"error": "x"}, 500, None, None))
+        assert [m.get("text") for m in dispatcher.messages] == ["I have failed to process your request."]
+        assert not dispatcher.messages[0].get("custom")
+        assert result["kairon_action_response"] == "I have failed to process your request."
+        assert log["bot_response"] == "I have failed to process your request."
+        mail.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("channel", ["whatsapp", "telegram", None])
+    async def test_same_markdown_message_on_every_channel(self, tracker, dispatcher, channel):
+        tracker.get_latest_input_channel.return_value = channel
+        await self._run(tracker, dispatcher, "any_ch", "bot_any_ch", ({"output": "Hi"}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("Hi")]
 
     # ─── enum/model validation ────────────────────────────────────────────────
 

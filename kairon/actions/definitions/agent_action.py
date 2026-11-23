@@ -71,8 +71,8 @@ class ActionAgent(ActionsBase):
         return text
 
     @staticmethod
-    def _format_text_response(text: str) -> dict:
-        """Custom message carrying the agent output as one markdown paragraph."""
+    def _markdown_response(text: str) -> dict:
+        """Custom message carrying the agent output as one markdown element."""
         return {"type": "markdown", "data": [{"type": "markdown", "children": [{"text": text}]}]}
 
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any], **kwargs):
@@ -129,7 +129,7 @@ class ActionAgent(ActionsBase):
 
             self.__response = output
             bot_response = self._single_dispatch_text(output) if output else ""
-            custom_message = self._format_text_response(bot_response) if bot_response else None
+            custom_message = self._markdown_response(bot_response) if bot_response else None
             self.__is_success = True
 
         except Exception as e:

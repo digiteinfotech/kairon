@@ -147,6 +147,7 @@ class ElementTypes(str, Enum):
     DROPDOWN = "dropdown"
     QUICK_REPLY = "quick_reply"
     FORMAT_TEXT = "formatText"
+    MARKDOWN = "markdown"
 
 
 class WhatsappBSPTypes(str, Enum):
