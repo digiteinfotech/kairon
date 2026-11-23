@@ -41,13 +41,16 @@ class KaironEventPublisher:
     """
 
     @staticmethod
-    def calculate_signature(secret: str, timestamp: str, body_bytes: bytes) -> str:
+    def calculate_signature(secret: str, timestamp: str, body_bytes: bytes, bound_id: Optional[str] = None) -> str:
         """
         Calculates HMAC-SHA256 signature over a timestamp-bound payload, so the
         X-Kairon-Timestamp header cannot be swapped on a captured request without
         invalidating the signature (signed_payload = "<timestamp>." + raw body bytes).
+        With `bound_id` the request id is signed too ("<timestamp>.<bound_id>." + body), so the receiver's replay check on
+        that id cannot be sidestepped by putting a fresh id on a captured request.
         """
-        signed_payload = f"{timestamp}.".encode('utf-8') + body_bytes
+        prefix = f"{timestamp}.{bound_id}." if bound_id else f"{timestamp}."
+        signed_payload = prefix.encode('utf-8') + body_bytes
         return hmac.new(secret.encode('utf-8'), signed_payload, hashlib.sha256).hexdigest()
 
     @staticmethod
@@ -111,16 +114,18 @@ class KaironEventPublisher:
         host_header: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Signed request/response call (same timestamp-bound HMAC scheme as `publish_webhook`) for connector
-        endpoints that return data, such as user management. `X-Kairon-Event-ID` is a fresh single-use value the
-        receiver records to reject replays within the signature window. Returns status code and parsed JSON.
+        Signed request/response call (same timestamp-bound HMAC scheme as `publish_webhook`, with the request id signed as
+        well) for connector endpoints that return data, such as user management. `X-Kairon-Event-ID` is a fresh single-use
+        value the receiver records to reject replays within the signature window; being part of the signature, it cannot be
+        replaced on a captured request. The receiver (kairon_connector) must verify with the same id-bound scheme.
+        Returns status code and parsed JSON.
         """
         body_bytes = json.dumps(body, separators=(',', ':')).encode('utf-8')
         timestamp = str(int(time.time()))
         request_id = f"req_{uuid.uuid4().hex}"
         headers = {
             "Content-Type": "application/json",
-            "X-Kairon-Signature": f"sha256={cls.calculate_signature(secret, timestamp, body_bytes)}",
+            "X-Kairon-Signature": f"sha256={cls.calculate_signature(secret, timestamp, body_bytes, bound_id=request_id)}",
             "X-Kairon-Timestamp": timestamp,
             "X-Kairon-Event-ID": request_id,
         }
