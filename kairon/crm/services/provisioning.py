@@ -113,9 +113,30 @@ class ProvisioningService:
             doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc
 
+    def _recover_interrupted_bench(self, doc):
+        """
+        BENCH_RUNNING is written before the Bench step starts and is left only through SITE_CREATED or FAILED_BENCH. Finding it
+        at the start of a run means the worker that wrote it is gone (the lock is ours, and a lock is only taken over once it is
+        stale), so the site may be half built. A half-built site makes a plain retry fail ("site already exists"), so it is removed
+        first, exactly as a failed run's rollback does, and the run then continues as an ordinary FAILED_BENCH retry.
+        If the clean-up itself fails the error is recorded as FAILED_BENCH by the caller and the next run tries again.
+        The status is written directly, scoped to this run's id, because the usual status helper releases the lock on FAILED_*
+        and this run still holds it.
+        """
+        logger.warning(f"[{self.provisioning_id}] Previous Bench run was interrupted; removing its partial site and retrying.")
+        if doc.site_name:
+            BenchExecutor().drop_site(doc.site_name, allow_directory_fallback=True)
+        CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name,
+                                 provisioning_id=self.provisioning_id).update_one(
+            set__onboarding_status=CRMOnboardingStatus.FAILED_BENCH.value,
+            set__last_error="Previous provisioning run was interrupted; its partial site was removed.")
+        return CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
+
     def _phase_bench_execution(self, doc):
         """Bench Execution (Infrastructure Setup). Returns (doc, admin_password)."""
         admin_password = None
+        if doc.onboarding_status == CRMOnboardingStatus.BENCH_RUNNING.value:
+            doc = self._recover_interrupted_bench(doc)
         if doc.onboarding_status in (CRMOnboardingStatus.PROJECT_CREATED.value, CRMOnboardingStatus.FAILED_BENCH.value):
             self.update_onboarding_status(CRMOnboardingStatus.BENCH_RUNNING)
 
@@ -133,9 +154,10 @@ class ProvisioningService:
                 selected_features=doc.selected_modules
             )
 
-            # Fetch updated doc
-            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
+            # Record the new status first, then read the record back: the next steps decide whether to run from the status
+            # of the record they are handed, so a record read before this update would make every one of them skip.
             self.update_onboarding_status(CRMOnboardingStatus.SITE_CREATED)
+            doc = CRMClientDetails.objects(bot=self.bot, company_name__iexact=self.company_name).first()
         return doc, admin_password
 
     def _phase_wait_for_health(self, doc, verifier):
