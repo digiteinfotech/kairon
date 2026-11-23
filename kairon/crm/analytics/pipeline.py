@@ -40,6 +40,7 @@ DEFAULTS = {
     "time_budget_seconds": 420,     # per bot: stop starting new analyses for that bot after this long
     "pass_budget_seconds": 240,     # whole pass: stop starting new bots after this long (the job runs every 5 minutes)
     "max_attempts": 5,
+    "retention_days": 30,           # contact details kept on dead-lettered / no-contact records this long (delivered ones: none)
     "backoff_base_seconds": 60,
     "backoff_cap_seconds": 3600,
 }
@@ -66,6 +67,7 @@ class LeadAnalysisPipeline:
     def run_cycle(self) -> Dict[Text, Any]:
         summary: Dict[Text, Any] = {"bots": 0, "skipped_leased": 0, "failed_bots": 0, "deferred_bots": 0, "analysed": 0,
                                     "qualified": 0, "dispatched": 0, "errors": 0}
+        summary["purged_lead_data"] = self.purge_expired_lead_data()
         bots = self._bots_least_recently_run_first()
         started = time.monotonic()
         for position, bot in enumerate(bots):
@@ -88,6 +90,17 @@ class LeadAnalysisPipeline:
             for key in ("analysed", "qualified", "dispatched", "errors"):
                 summary[key] += stats.get(key, 0)
         return summary
+
+    def purge_expired_lead_data(self) -> int:
+        """
+        Retention for personal data: contact details are cleared from records that will never be delivered (gave up, or still
+        no verifiable contact) once they are `retention_days` old. The analysis outcome itself (status, reason, attempts) stays.
+        """
+        cutoff = datetime.utcfromtimestamp(self.now_fn()) - timedelta(days=cfg("retention_days"))
+        return CRMLeadAnalysisRecord.objects(
+            status__in=[LeadRecordStatus.FAILED_PERMANENT.value, LeadRecordStatus.NEEDS_CONTACT.value],
+            updated_at__lt=cutoff, lead_fields__ne={},
+        ).update(set__lead_fields={})
 
     @staticmethod
     def _bots_least_recently_run_first() -> List[Text]:
@@ -276,6 +289,7 @@ class LeadAnalysisPipeline:
             record.dispatched_at = datetime.utcnow()
             record.next_attempt_at = None
             record.last_error = None
+            record.lead_fields = {}         # delivered: the lead now lives in ERPNext, Kairon keeps no copy of the contact details
             stats["dispatched"] += 1
             self._save(record)
         elif status in TRANSIENT_HTTP or (status or 0) >= 500:
