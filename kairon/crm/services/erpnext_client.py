@@ -1,4 +1,5 @@
 import json
+import uuid
 import requests
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ from kairon.exceptions import AppException
 from kairon.crm.services.docker_utils import run_docker
 from kairon.shared.utils import Utility
 from kairon.crm.services.bench_http import build_bench_session
-from kairon.crm.services.bench_runner import SITE_PATTERN, execution_mode
+from kairon.crm.services.bench_runner import SITE_PATTERN, execution_mode, get_bench_runner
 from kairon.crm.constants import (
     REQUIRED_INTEGRATION_USER_ROLES,
     BUSINESS_MODULE_CATALOG,
@@ -607,22 +608,37 @@ print(json.dumps(keys))
                             self.session.put(put_url, json={"default_workspace": workspace_name}, timeout=10)
                 self._log_api_op("set_default_workspace_all", workspace_name, True, 200)
 
-            container_name = self._bench_container()
+            self._set_site_home_page(f"workspace/{workspace_name}")
+        except Exception as e:
+            logger.warning(f"[ERPNextClient] Failed to set default workspace for users: {e}")
 
-            script = f"""
+    def _set_site_home_page(self, home_page: str):
+        """
+        Writes the site-wide `desktop:home_page` default. In runner mode this goes through the Bench runner's `set_homepage`
+        operation (the one provisioning already uses for the same value, so both agree) and not through a container that does
+        not exist there; otherwise it runs inside the Bench container. Raises when the write did not happen.
+        """
+        runner = get_bench_runner()
+        if runner:
+            result = runner.run("set_homepage", self.site_name, {"home_page": home_page},
+                                idempotency_key=f"{uuid.uuid4().hex}:set_homepage:{self.site_name}")
+            if not result.ok:
+                raise AppException(f"The Bench runner could not set the site home page: {result.error}")
+            return
+        script = f"""
 import frappe
 frappe.init(site={json.dumps(self.site_name)})
 frappe.connect()
-frappe.db.set_default('desktop:home_page', {json.dumps(f'workspace/{workspace_name}')})
+frappe.db.set_default('desktop:home_page', {json.dumps(home_page)})
 frappe.db.commit()
 """
-            cmd = [
-                "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", container_name,
-                "/home/frappe/frappe-bench/env/bin/python", "-c", script
-            ]
-            run_docker(cmd, capture_output=True, text=True, timeout=30)
-        except Exception as e:
-            logger.warning(f"[ERPNextClient] Failed to set default workspace for users: {e}")
+        cmd = [
+            "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", "-i", self._bench_container(),
+            "/home/frappe/frappe-bench/env/bin/python", "-c", script
+        ]
+        res = run_docker(cmd, capture_output=True, text=True, timeout=30)
+        if res.returncode != 0:
+            raise AppException("Could not set the site home page inside the Bench container.")
 
     def configure_workspace_visibility(self, selected_module_keys: List[str], catalog: Optional[Dict[str, Any]] = None) -> Dict[str, bool]:
         """
