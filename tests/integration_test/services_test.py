@@ -27682,7 +27682,7 @@ def test_list_actions():
                                              'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [],
                               'google_search_action': [],
-                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
+                              'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [], 'erpnext_crm_lead_qualified_action': [],
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
                               'prompt_action': [], 'callback_action': [], 'schedule_action': [],
@@ -34550,6 +34550,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "jira_action": [],
             "zendesk_action": [],
             "pipedrive_leads_action": [],
+            "erpnext_crm_lead_qualified_action": [],
             "hubspot_forms_action": [],
             "two_stage_fallback": [],
             "kairon_bot_response": [],
@@ -36223,6 +36224,7 @@ def test_get_bot_settings():
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
+                              'enable_crm': False,
                               'live_agent_enabled': False,
                               'pos_enabled': False,
                               'test_limit_per_day': 5,
@@ -36339,6 +36341,7 @@ def test_update_analytics_settings():
                               'notification_scheduling_limit': 4,
                               'refresh_token_expiry': 60,
                               'rephrase_response': False,
+                              'enable_crm': False,
                               'test_limit_per_day': 5,
                               'training_limit_per_day': 5, 'dynamic_broadcast_execution_timeout': 21600,
                               'website_data_generator_depth_search_limit': 2,
@@ -41641,7 +41644,7 @@ def test_list_system_metadata():
     actual = response.json()
     assert actual["error_code"] == 0
     assert actual["success"]
-    assert len(actual["data"]) == 21
+    assert len(actual["data"]) == 22  # includes provisioning_matrix (metadata/provisioning_matrix.yml)
 
 def test_leave_bot_successfully_1(monkeypatch):
     response = client.post(
