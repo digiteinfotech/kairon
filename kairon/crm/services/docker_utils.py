@@ -1,6 +1,6 @@
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - the one module that starts processes; arguments are always lists, never shell strings
 from typing import List
 from loguru import logger
 
@@ -8,6 +8,8 @@ from kairon.exceptions import AppException
 
 
 PIPE = subprocess.PIPE
+TimeoutExpired = subprocess.TimeoutExpired      # re-exported so callers need not import subprocess themselves
+CompletedProcess = subprocess.CompletedProcess
 
 
 def run_docker(cmd: List[str], **kwargs) -> subprocess.CompletedProcess:

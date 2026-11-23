@@ -87,7 +87,6 @@ class BenchExecutor:
         """
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
-        from kairon.crm.services.bench_runner import get_bench_runner
         runner = get_bench_runner()
         if runner:
             result = runner.run("set_admin_password", site_name, secrets={"admin_password": admin_password},

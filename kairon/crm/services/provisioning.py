@@ -366,6 +366,36 @@ class ProvisioningService:
         except Exception as e:  # best effort: the value was never stored or shown
             logger.warning(f"[{self.provisioning_id}] Could not rotate verification password: {type(e).__name__}")
 
+    def _attempt(self, failed_status: CRMOnboardingStatus, label: str, phase, *args):
+        """
+        Runs one workflow phase. Returns `(value, None)` on success. On any error it records the stage-specific FAILED_*
+        status (the step guards resume from it on the next run) and returns `(None, ProvisioningResult)` for the caller to hand back.
+        """
+        try:
+            return phase(*args), None
+        except Exception as e:
+            logger.error(f"[{self.provisioning_id}] {label} failed: {str(e)}")
+            self.update_onboarding_status(failed_status, str(e))
+            return None, ProvisioningResult(status=failed_status.value, error=str(e))
+
+    def _project_created_or_record_failure(self, doc):
+        """PENDING -> PROJECT_CREATED. A failure is recorded as FAILED_PROJECT and re-raised to the caller."""
+        try:
+            return self._phase_project_created(doc)
+        except Exception as e:
+            if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
+                self.update_onboarding_status(CRMOnboardingStatus.FAILED_PROJECT, str(e)[:500])
+            raise
+
+    def _ensure_admin_password(self, doc, admin_password):
+        """The Administrator password lives in memory only; on a retry or resumption it is rotated on the existing site."""
+        if admin_password:
+            return admin_password
+        admin_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
+        logger.info(f"[{self.provisioning_id}] Rotating Administrator password on existing site for login...")
+        BenchExecutor().set_admin_password(doc.site_name, admin_password)
+        return admin_password
+
     def execute_onboarding_workflow(self, current_user_email: str, first_name: str, last_name: str) -> ProvisioningResult:
         """
         Executes the resumable onboarding workflow. Each numbered phase below is a
@@ -380,71 +410,46 @@ class ProvisioningService:
         crm_config = Utility.environment.get("crm", {})
         bench_config = crm_config.get("bench", {})
         smtp_enabled = bench_config.get("smtp_enabled", False)
-
-        admin_password = None
-        temp_password = None
         auth_method = "invitation_email"
 
         # 1. PENDING -> PROJECT_CREATED
-        try:
-            doc = self._phase_project_created(doc)
-        except Exception as e:
-            if doc.onboarding_status == CRMOnboardingStatus.PENDING.value:
-                self.update_onboarding_status(CRMOnboardingStatus.FAILED_PROJECT, str(e)[:500])
-            raise
+        doc = self._project_created_or_record_failure(doc)
 
         # 2. Bench Execution (Infrastructure Setup)
-        try:
-            doc, admin_password = self._phase_bench_execution(doc)
-        except Exception as e:
-            logger.error(f"[{self.provisioning_id}] Bench execution failed: {str(e)}")
-            self.update_onboarding_status(CRMOnboardingStatus.FAILED_BENCH, str(e))
-            return ProvisioningResult(status=CRMOnboardingStatus.FAILED_BENCH.value, error=str(e))
+        bench, failure = self._attempt(CRMOnboardingStatus.FAILED_BENCH, "Bench execution", self._phase_bench_execution, doc)
+        if failure:
+            return failure
+        doc, admin_password = bench
 
         # Setup Clients
         base_url = bench_config.get("base_url", DEFAULT_BENCH_BASE_URL)
-        host_header = doc.site_name
-
-        verifier = ProvisionVerifier(base_url, host_header)
-        client = ERPNextClient(base_url, host_header)
-
-        # Ensure we have a valid admin_password in memory (rotate it on retry/resumption)
-        if not admin_password:
-            admin_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(16))
-            logger.info(f"[{self.provisioning_id}] Rotating Administrator password on existing site for login...")
-            BenchExecutor().set_admin_password(doc.site_name, admin_password)
+        verifier = ProvisionVerifier(base_url, doc.site_name)
+        client = ERPNextClient(base_url, doc.site_name)
+        admin_password = self._ensure_admin_password(doc, admin_password)
 
         # 3. Wait for Health
-        try:
-            doc = self._phase_wait_for_health(doc, verifier)
-        except Exception as e:
-            logger.error(f"[{self.provisioning_id}] Health check failed: {str(e)}")
-            self.update_onboarding_status(CRMOnboardingStatus.FAILED_HEALTH, str(e))
-            return ProvisioningResult(status=CRMOnboardingStatus.FAILED_HEALTH.value, error=str(e))
+        doc, failure = self._attempt(CRMOnboardingStatus.FAILED_HEALTH, "Health check", self._phase_wait_for_health, doc, verifier)
+        if failure:
+            return failure
 
         # 4. Create Company + Integration Infrastructure + Module Configuration
-        try:
-            doc = self._phase_company_and_integration(doc, client, admin_password, crm_config)
-        except Exception as e:
-            logger.error(f"[{self.provisioning_id}] Company creation / module configuration failed: {str(e)}")
-            self.update_onboarding_status(CRMOnboardingStatus.FAILED_COMPANY, str(e))
-            return ProvisioningResult(status=CRMOnboardingStatus.FAILED_COMPANY.value, error=str(e))
+        doc, failure = self._attempt(CRMOnboardingStatus.FAILED_COMPANY, "Company creation / module configuration",
+                                     self._phase_company_and_integration, doc, client, admin_password, crm_config)
+        if failure:
+            return failure
 
         # 5. Create User & Assign Roles & Module Profile
-        try:
-            doc, temp_password = self._phase_create_user(doc, client, admin_password, smtp_enabled, current_user_email, first_name, last_name)
-        except Exception as e:
-            logger.error(f"[{self.provisioning_id}] User creation/assignment failed: {str(e)}")
-            self.update_onboarding_status(CRMOnboardingStatus.FAILED_USER, str(e))
-            return ProvisioningResult(status=CRMOnboardingStatus.FAILED_USER.value, error=str(e))
+        created, failure = self._attempt(CRMOnboardingStatus.FAILED_USER, "User creation/assignment", self._phase_create_user,
+                                         doc, client, admin_password, smtp_enabled, current_user_email, first_name, last_name)
+        if failure:
+            return failure
+        doc, temp_password = created
 
         # 6. Verification
-        try:
-            temp_password = self._phase_verification(doc, client, verifier, admin_password, temp_password, smtp_enabled, current_user_email)
-        except Exception as e:
-            logger.error(f"[{self.provisioning_id}] Final verification failed: {str(e)}")
-            self.update_onboarding_status(CRMOnboardingStatus.FAILED_VERIFICATION, str(e))
-            return ProvisioningResult(status=CRMOnboardingStatus.FAILED_VERIFICATION.value, error=str(e))
+        _, failure = self._attempt(CRMOnboardingStatus.FAILED_VERIFICATION, "Final verification", self._phase_verification,
+                                   doc, client, verifier, admin_password, temp_password, smtp_enabled, current_user_email)
+        if failure:
+            return failure
 
         from kairon.crm.processor import CRMProcessor  # local import: processor imports this module
         return ProvisioningResult(

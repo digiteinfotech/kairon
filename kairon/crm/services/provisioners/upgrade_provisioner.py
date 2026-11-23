@@ -1,9 +1,8 @@
-import subprocess
 from datetime import datetime, timedelta
 from typing import Dict, Any
 from loguru import logger
 from kairon.exceptions import AppException
-from kairon.crm.services.docker_utils import run_docker
+from kairon.crm.services.docker_utils import CompletedProcess, run_docker
 from kairon.crm.models import CRMClientDetails, CRMOnboardingStatus
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.preflight_validator import PreFlightValidator
@@ -76,7 +75,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
             # A previous attempt may have installed the app and died before recording it; installing twice would fail.
             if self._erpnext_installed(site_name):
                 logger.info(f"[AppUpgradeProvisioner] 'erpnext' is already installed on '{site_name}'; skipping install-app.")
-                upgrade_res = subprocess.CompletedProcess(upgrade_cmd, 0, "", "")
+                upgrade_res = CompletedProcess(upgrade_cmd, 0, "", "")
             else:
                 upgrade_res = run_docker(upgrade_cmd, capture_output=True, text=True, timeout=300)
 
@@ -113,7 +112,7 @@ class AppUpgradeProvisioner(BaseProvisioner):
         except Exception as e:
             # Guarantee a terminal state on any failure -- including ones that never
             # reach the explicit FAILED_UPGRADE assignment above (e.g. a pre-flight
-            # failure or subprocess.TimeoutExpired) -- so the record doesn't stay
+            # failure or TimeoutExpired) -- so the record doesn't stay
             # stuck in the non-terminal UPGRADING_TO_TIER_2 state forever.
             if doc.onboarding_status == CRMOnboardingStatus.UPGRADING_TO_TIER_2.value:
                 doc.onboarding_status = CRMOnboardingStatus.FAILED_UPGRADE.value

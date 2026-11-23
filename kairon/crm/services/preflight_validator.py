@@ -1,8 +1,7 @@
-import subprocess
 from typing import List
 from loguru import logger
 from kairon.exceptions import AppException
-from kairon.crm.services.docker_utils import run_docker
+from kairon.crm.services.docker_utils import TimeoutExpired, run_docker
 from kairon.shared.utils import Utility
 from kairon.crm.services.bench_runner import execution_mode, get_bench_runner
 from kairon.crm.services.feature_resolver import FeatureAppResolver
@@ -93,7 +92,7 @@ class PreFlightValidator:
         test_cmd = ["docker", "exec", container_name, "bench", "--version"]
         try:
             res = run_docker(test_cmd, capture_output=True, text=True, timeout=30)
-        except subprocess.TimeoutExpired:
+        except TimeoutExpired:
             raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
         if res.returncode != 0:
             raise AppException(
@@ -108,7 +107,7 @@ class PreFlightValidator:
             check_site_cmd = ["docker", "exec", container_name, "test", "-d", f"sites/{site_name}"]
             try:
                 site_res = run_docker(check_site_cmd, capture_output=True, timeout=30)
-            except subprocess.TimeoutExpired:
+            except TimeoutExpired:
                 raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
             if site_res.returncode == 0:
                 raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
@@ -118,7 +117,7 @@ class PreFlightValidator:
             check_app_cmd = ["docker", "exec", container_name, "test", "-d", f"apps/{app}"]
             try:
                 app_res = run_docker(check_app_cmd, capture_output=True, timeout=30)
-            except subprocess.TimeoutExpired:
+            except TimeoutExpired:
                 raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
             if app_res.returncode != 0:
                 raise AppException(
@@ -133,7 +132,7 @@ class PreFlightValidator:
             ]
             try:
                 run_docker(ensure_apps_cmd, capture_output=True, timeout=30)
-            except subprocess.TimeoutExpired:
+            except TimeoutExpired:
                 raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
 
         logger.info("[PreFlightValidator] Infrastructure pre-flight validation completed successfully.")
