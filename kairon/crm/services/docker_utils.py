@@ -19,12 +19,24 @@ def run_docker(cmd: List[str], **kwargs) -> subprocess.CompletedProcess:
     names by the provisioning matrix) and secrets travel as arguments exactly as `docker exec` requires. The binary is
     resolved to its absolute path here, so no call site starts a process from a partial executable path.
     """
-    return subprocess.run(cmd, **_with_binary(cmd, kwargs))  # nosec B603 - argument list, validated inputs
+    args = _docker_args(cmd)
+    return subprocess.run(args, **_with_binary(args, kwargs))  # nosec B603 - literal program name, argument list, validated inputs
 
 
 def popen_docker(cmd: List[str], **kwargs) -> subprocess.Popen:
     """`run_docker` for piped processes (the frontend asset sync)."""
-    return subprocess.Popen(cmd, **_with_binary(cmd, kwargs))  # nosec B603 - argument list, validated inputs
+    args = _docker_args(cmd)
+    return subprocess.Popen(args, **_with_binary(args, kwargs))  # nosec B603 - literal program name, argument list, validated inputs
+
+
+def _docker_args(cmd: List[str]) -> List[str]:
+    """
+    The program is always the literal `docker`, never a value that came from a caller; everything after it is plain data passed
+    as separate arguments (no shell). Anything that is not a `docker ...` list of strings is refused.
+    """
+    if not cmd or cmd[0] != "docker" or not all(isinstance(arg, str) and "\x00" not in arg for arg in cmd):
+        raise AppException("Only docker commands can be run here.")
+    return ["docker", *cmd[1:]]
 
 
 def _with_binary(cmd: List[str], kwargs: dict) -> dict:
