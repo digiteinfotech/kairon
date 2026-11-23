@@ -1,4 +1,4 @@
-type_list: ["image","link","video","button","quick_reply","dropdown","audio", "formatText"]
+type_list: ["image","link","video","button","quick_reply","dropdown","audio", "formatText", "markdown"]
 slack:
   image: '{
 	"blocks": [
@@ -114,6 +114,10 @@ whatsapp:
   }'
   body_message: "Please select from quick buttons:"
   formatText: '{
+    "preview_url": true,
+    "body":"<data>"
+  }'
+  markdown: '{
     "preview_url": true,
     "body":"<data>"
   }'
