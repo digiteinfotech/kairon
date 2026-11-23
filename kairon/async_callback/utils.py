@@ -90,6 +90,7 @@ class CallbackUtility:
         predefined_objects['mark_as_processed'] = partial(CallbackScriptUtility.mark_as_processed, bot=bot)
         predefined_objects['delete_data_analytics'] = partial(CallbackScriptUtility.delete_data_analytics, bot=bot)
         predefined_objects['update_data_analytics'] = partial(CallbackScriptUtility.update_data_analytics, bot=bot)
+        predefined_objects['get_decision'] = partial(CallbackScriptUtility.get_decision, bot=bot)
         predefined_objects["invoke_agentic_flow"] = partial(CallbackScriptUtility.invoke_agentic_flow,
                                                             bot=bot,
                                                             sender_id=sender_id,

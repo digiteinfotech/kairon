@@ -1,4 +1,5 @@
 import pickle
+import urllib.parse
 from calendar import timegm
 from datetime import datetime, date
 from email.mime.multipart import MIMEMultipart
@@ -8,6 +9,7 @@ from typing import Text, Dict, Callable, List
 import base64
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.util import obj_to_ref, astimezone
+from kairon.shared.request_context import get_request_id, REQUEST_ID_HEADER
 from mongoengine import DoesNotExist
 from pymongo import MongoClient
 from tzlocal import get_localzone
@@ -28,6 +30,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from kairon.shared.callback.data_objects import CallbackConfig, CallbackData
 import json as jsond
 
+import requests
 from kairon.shared.chat.user_media import UserMedia
 from kairon.shared.cognition.data_objects import AnalyticsCollectionData
 from urllib.parse import urljoin
@@ -519,7 +522,6 @@ class CallbackScriptUtility:
     @staticmethod
     def process_instruction(data_list, prompt, operation_type, model_id, llm_type: str = "openrouter",
                             bot: str = None, user: str = None):
-        import requests
         from kairon.shared.admin.data_objects import LLMSecret
 
         doc = LLMSecret.objects(llm_type="openrouter").first()
@@ -662,3 +664,33 @@ class CallbackScriptUtility:
 
         result = jsond.loads(response)
         return result
+
+    @staticmethod
+    def get_decision(llm_type: str, body: dict, bot: str = None):
+
+        payload = {
+            "decision_request": body.get("decision_request"),
+            "user": body.get("user"),
+            "invocation": body.get("invocation") or {}
+        }
+
+        rid = get_request_id()
+        headers = {REQUEST_ID_HEADER: rid} if rid else None
+
+        timeout = Utility.environment["llm"].get("request_timeout", 30)
+
+        response = requests.post(
+            url=(
+                f"{Utility.environment['llm']['url']}/"
+                f"{urllib.parse.quote(bot)}/"
+                f"decision/{llm_type}"
+            ),
+            json=payload,
+            headers=headers,
+            timeout=timeout
+        )
+        logger.info("completed")
+
+        response.raise_for_status()
+
+        return response.json()
