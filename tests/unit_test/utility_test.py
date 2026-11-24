@@ -37,7 +37,7 @@ from kairon.chat.converters.channels.response_factory import ConverterFactory
 from kairon.chat.converters.channels.responseconverter import ElementTransformerOps
 from kairon.chat.converters.channels.telegram import TelegramResponseConverter
 from kairon.exceptions import AppException
-from kairon.shared.constants import ElementTypes
+from kairon.shared.constants import ElementTypes, ChannelTypes
 from kairon.shared.data.audit.data_objects import AuditLogData
 from kairon.shared.data.audit.processor import AuditDataProcessor
 from kairon.shared.data.constant import STORY_EVENT
@@ -3881,3 +3881,104 @@ class TestUtility:
 
     def test_process_sender_id_none(self):
         assert Utility.process_sender_id(None) is None
+
+    @staticmethod
+    def _wa_md(text):
+        return [{"type": "markdown", "children": [{"text": text}]}]
+
+
+    @pytest.mark.parametrize("raw,expected", [
+        ("**bold**", "*bold*"),
+        ("*italic*", "_italic_"),
+        ("_italic_", "_italic_"),
+        ("~~strike~~", "~strike~"),
+        ("a **b** and *c* and ~~d~~", "a *b* and _c_ and ~d~"),
+        ("- item", "\u2022 item"),
+        ("* item", "\u2022 item"),
+        ("- one\n- two\n* three", "\u2022 one\n\u2022 two\n\u2022 three"),
+        ("a - b", "a - b"),
+        ("- **a** b", "\u2022 *a* b"),
+        ("# Title", "*Title*"),
+        ("###### Six", "*Six*"),
+        ("# **Hi**", "*Hi*"),
+        ("### 1. **Nov 20, 2026** — *Chat notification* ", "*1. Nov 20, 2026 — _Chat notification_*"),
+        ("## **A** and **B**", "*A and B*"),
+        ("[text](https://x.com/a_b)", "text (https://x.com/a_b)"),
+        ("plain text", "plain text"),
+        ("a\nb", "a\nb"),
+        ("| a | b |\n|---|---|", "| a | b |\n|---|---|"),
+        ("`**x**`", "`**x**`"),
+        ("2 * 3 * 4", "2 * 3 * 4"),
+        ("#Heading", "#Heading"),
+        ("", ""),
+    ])
+    def test_whatsapp_markdown_to_whatsapp(self, raw, expected):
+        assert WhatsappResponseConverter.markdown_to_whatsapp(raw) == expected
+
+    def test_whatsapp_code_fence_untouched(self):
+        fenced = "```\n**x** - y\n# z\n[a](b)\n```"
+        assert WhatsappResponseConverter.markdown_to_whatsapp(fenced) == fenced
+        assert WhatsappResponseConverter.markdown_to_whatsapp(f"**a**\n{fenced}\n**b**") == f"*a*\n{fenced}\n*b*"
+
+    @pytest.mark.parametrize("raw", ["**bold", "*it", "~~s", "[t](", "```open", "***x***", "____", "**", "#", "- "])
+    def test_whatsapp_malformed_markdown_raises_no_error(self, raw):
+        assert isinstance(WhatsappResponseConverter.markdown_to_whatsapp(raw), str)
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_message_converter_returns_converted_text_body(self):
+        converter = ConverterFactory.getConcreteInstance("markdown", ChannelTypes.WHATSAPP.value)
+        assert await converter.messageConverter(self._wa_md("**hi**\n- x")) == {"preview_url": True, "body": "*hi*\n\u2022 x"}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("data", [[], None, [{"type": "markdown", "children": []}], [{"type": "markdown"}]])
+    async def test_whatsapp_empty_or_missing_children_no_error(self, data):
+        converter = ConverterFactory.getConcreteInstance("markdown", ChannelTypes.WHATSAPP.value)
+        assert await converter.messageConverter(data) == {"preview_url": True, "body": ""}
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_multiple_children_joined_by_line_break(self):
+        converter = ConverterFactory.getConcreteInstance("markdown", ChannelTypes.WHATSAPP.value)
+        data = [{"type": "markdown", "children": [{"text": "a"}, {"text": "b"}]}]
+        assert (await converter.messageConverter(data))["body"] == "a\nb"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_send_custom_json_sends_one_text_message(self):
+        from kairon.chat.handlers.channels.whatsapp import WhatsappBot
+        client = MagicMock()
+        client.send.return_value = {}
+        await WhatsappBot(client).send_custom_json("91987", {"type": "markdown", "data": self._wa_md("**hi**")})
+        client.send.assert_called_once_with({"preview_url": True, "body": "*hi*"}, "91987", "text")
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_format_text_on_whatsapp_unchanged(self):
+        from kairon.chat.handlers.channels.whatsapp import WhatsappBot
+        client = MagicMock()
+        client.send.return_value = {}
+        message = {"type": "formatText",
+                   "data": [{"type": "paragraph", "children": [{"text": "hi", "bold": True}]}]}
+        await WhatsappBot(client).send_custom_json("91987", message)
+        client.send.assert_called_once_with({"preview_url": True, "body": "*hi*\n"}, "91987", "text")
+
+    def test_whatsapp_markdown_in_type_list_and_only_whatsapp_template(self):
+        assert "markdown" in Utility.system_metadata["type_list"]
+        for channel in ("slack", "telegram", "messenger", "hangouts", "msteams", "line"):
+            assert "markdown" not in (Utility.system_metadata.get(channel) or {})
+        assert "markdown" in Utility.system_metadata["whatsapp"]
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_markdown_transformer_error_is_wrapped(self):
+        converter = ConverterFactory.getConcreteInstance("markdown", ChannelTypes.WHATSAPP.value)
+        with pytest.raises(Exception, match="WhatsappResponseConverter::messageConverter.*markdown_transformer"):
+            await converter.messageConverter([{"type": "markdown", "children": "x"}])
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_format_text_italic_and_strikethrough(self):
+        converter = ConverterFactory.getConcreteInstance("formatText", ChannelTypes.WHATSAPP.value)
+        data = [{"type": "paragraph", "children": [{"text": "a", "italic": True}, {"text": "b", "strikethrough": True}]}]
+        assert (await converter.messageConverter(data))["body"] == "_a_~b~\n"
+
+    @pytest.mark.asyncio
+    async def test_whatsapp_format_text_error_is_wrapped(self):
+        converter = ConverterFactory.getConcreteInstance("formatText", ChannelTypes.WHATSAPP.value)
+        with pytest.raises(Exception, match="paragraph_transformer"):
+            await converter.messageConverter([{"type": "paragraph", "children": [{"text": 5}]}])

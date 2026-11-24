@@ -5275,6 +5275,27 @@ class TestActions:
                           followup_action=None, active_loop=None, latest_action_name=None)
         assert ActionUtility.prepare_bot_responses(tracker, 5) == []
 
+    def test_prepare_bot_responses_includes_markdown_custom_message(self):
+        md = "# Title\n\nfirst **bold**\n\n- a"
+        custom = {"type": "markdown", "data": [{"type": "markdown", "children": [{"text": md}]}]}
+        events = [
+            {"event": "user", "text": "q1"},
+            {"event": "bot", "text": None, "data": {"custom": custom}},
+            {"event": "bot", "text": "plain reply", "data": {}},
+            {"event": "bot", "text": None, "data": {"custom": {"type": "image", "data": [{"text": "x"}]}}},
+            {"event": "bot", "text": None, "data": {"custom": {"type": "markdown", "data": []}}},
+            {"event": "user", "text": "q2"},
+        ]
+        tracker = Tracker(sender_id="sender1", slots={}, events=events, paused=False,
+                          latest_message={'text': 'q2'}, followup_action=None, active_loop=None,
+                          latest_action_name=None)
+        assert ActionUtility.prepare_bot_responses(tracker, 5) == [
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": md},
+            {"role": "assistant", "content": "plain reply"},
+            {"role": "user", "content": "q2"},
+        ]
+
     def test_prepare_bot_responses_bot_utterance_empty_and_jumbled(self):
         events = Utility.read_yaml("tests/testing_data/history/tracker_events_multiple_actions_predicted.json")
         latest_message = {'text': 'what is kairon?s', 'intent_ranking': [{'name': 'nlu_fallback'}]}

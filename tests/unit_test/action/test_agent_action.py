@@ -1,3 +1,4 @@
+import json
 import os
 from unittest.mock import patch, MagicMock, AsyncMock
 
@@ -15,6 +16,10 @@ from kairon.shared.actions.data_objects import AgentActionConfig
 from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.data.constant import STATUSES
+
+
+def env(text):
+    return {"type": "markdown", "data": [{"type": "markdown", "children": [{"text": text}]}]}
 
 
 class TestActionAgent:
@@ -117,7 +122,8 @@ class TestActionAgent:
         assert call_kwargs["request_body"]["metadata"] == {}
         mock_log.assert_called_once()
         assert result["kairon_action_response"] == "Here is your answer"
-        assert any("Here is your answer" in m.get("text", "") for m in dispatcher.messages)
+        assert [m.get("custom") for m in dispatcher.messages] == [env("Here is your answer")]
+        assert all(not m.get("text") for m in dispatcher.messages)
 
     @pytest.mark.asyncio
     async def test_execute_response_non_dict(self, tracker, dispatcher):
@@ -252,7 +258,7 @@ class TestActionAgent:
         assert "\n\n" not in ActionAgent._single_dispatch_text(text)
 
     @pytest.mark.asyncio
-    async def test_execute_dispatches_one_message_and_keeps_original_in_slot(self, tracker, dispatcher):
+    async def test_execute_dispatches_one_envelope_with_normalized_text_in_slot(self, tracker, dispatcher):
         self._make_config(name="exec_single", bot="bot_exec_single")
         tracker.sender_id = "sender_single"
         original = "first\n\nsecond\n\nthird"
@@ -266,8 +272,8 @@ class TestActionAgent:
             result = await ActionAgent("bot_exec_single", "exec_single").execute(
                 dispatcher, tracker, {}, action_call={})
 
-        assert [m["text"] for m in dispatcher.messages] == ["first\nsecond\nthird"]
-        assert result["kairon_action_response"] == original
+        assert [m["custom"] for m in dispatcher.messages] == [env("first\nsecond\nthird")]
+        assert result["kairon_action_response"] == "first\nsecond\nthird"
 
     @pytest.mark.asyncio
     async def test_is_success_true_on_success(self, tracker, dispatcher):
@@ -292,6 +298,212 @@ class TestActionAgent:
 
         assert action.is_success is False
         assert action.response is None
+
+
+    # ─── markdown response ───────────────────────────────────────────────────────
+
+    async def _run(self, tracker, dispatcher, name, bot, response, **cfg):
+        AgentActionConfig.objects(bot=bot, name=name).delete()
+        self._make_config(name=name, bot=bot, **cfg)
+        with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   return_value=response), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="tok"), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail") as mail, \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs") as log_cls:
+            log_cls.return_value.save = MagicMock()
+            result = await ActionAgent(bot, name).execute(dispatcher, tracker, {}, action_call={})
+        return result, log_cls.call_args[1], mail
+
+    @pytest.mark.asyncio
+    async def test_envelope_exact_shape_single_message(self, tracker, dispatcher):
+        result, log, mail = await self._run(
+            tracker, dispatcher, "env_shape", "bot_env_shape", ({"output": "Hello"}, 200, None, None))
+        assert len(dispatcher.messages) == 1
+        message = dispatcher.messages[0]
+        assert message["custom"] == env("Hello")
+        assert not message.get("text")
+        assert len(message["custom"]["data"]) == 1
+        assert len(message["custom"]["data"][0]["children"]) == 1
+        mail.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_envelope_keeps_markdown_syntax(self, tracker, dispatcher):
+        await self._run(tracker, dispatcher, "env_md", "bot_env_md",
+                        ({"output": "**bold**\n- item"}, 200, None, None))
+        assert dispatcher.messages[0]["custom"] == env("**bold**\n- item")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("raw,expected", [
+        ("a\r\nb", "a\nb"),
+        ("a\n\n\n\nb", "a\nb"),
+        ("a\r\n\r\n\r\nb", "a\nb"),
+        ("no breaks", "no breaks"),
+    ])
+    async def test_envelope_text_normalized(self, tracker, dispatcher, raw, expected):
+        result, log, _ = await self._run(
+            tracker, dispatcher, "env_norm", "bot_env_norm", ({"output": raw}, 200, None, None))
+        text = dispatcher.messages[0]["custom"]["data"][0]["children"][0]["text"]
+        assert text == expected
+        assert "\n\n" not in text and "\r" not in text
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_output_is_sent(self, tracker, dispatcher):
+        result, _, _ = await self._run(
+            tracker, dispatcher, "env_ws", "bot_env_ws", ({"output": "   "}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("   ")]
+        assert result["kairon_action_response"] == "   "
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("response", [
+        ({"output": ""}, 200, None, None),
+        ({"other": "x"}, 200, None, None),
+        ({"output": None}, 200, None, None),
+    ])
+    async def test_empty_output_sends_nothing(self, tracker, dispatcher, response):
+        result, log, mail = await self._run(tracker, dispatcher, "env_empty", "bot_env_empty", response)
+        assert dispatcher.messages == []
+        assert result["kairon_action_response"] == ""
+        assert not log["bot_response"]
+        assert log["status"] == STATUSES.SUCCESS.value
+        mail.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_non_string_output_is_stringified(self, tracker, dispatcher):
+        result, _, _ = await self._run(
+            tracker, dispatcher, "env_num", "bot_env_num", ({"output": 42}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("42")]
+        assert result["kairon_action_response"] == "42"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_default_on_when_setting_absent(self, tracker, dispatcher):
+        AgentActionConfig.objects(bot="bot_env_default", name="env_default").delete()
+        self._make_config(name="env_default", bot="bot_env_default")
+        raw = AgentActionConfig.objects(bot="bot_env_default", name="env_default").get().to_mongo().to_dict()
+        raw.pop("dispatch_bot_response", None)
+        with patch.object(ActionAgent, "retrieve_config", return_value=raw), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   return_value=({"output": "hi"}, 200, None, None)), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="tok"), \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
+            await ActionAgent("bot_env_default", "env_default").execute(dispatcher, tracker, {}, action_call={})
+        assert [m["custom"] for m in dispatcher.messages] == [env("hi")]
+
+    @pytest.mark.asyncio
+    async def test_dispatch_off_failure_sends_nothing(self, tracker, dispatcher):
+        AgentActionConfig.objects(bot="bot_env_off_fail", name="env_off_fail").delete()
+        self._make_config(name="env_off_fail", bot="bot_env_off_fail", dispatch_bot_response=False)
+        with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   side_effect=Exception("boom")), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="tok"), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail"), \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs.save"):
+            await ActionAgent("bot_env_off_fail", "env_off_fail").execute(dispatcher, tracker, {}, action_call={})
+        assert dispatcher.messages == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["exception", "status"])
+    async def test_failure_is_plain_text_and_mails_once(self, tracker, dispatcher, kind):
+        AgentActionConfig.objects(bot=f"bot_env_fail_{kind}", name=f"env_fail_{kind}").delete()
+        self._make_config(name=f"env_fail_{kind}", bot=f"bot_env_fail_{kind}")
+        patch_kwargs = ({"side_effect": Exception("boom")} if kind == "exception"
+                        else {"return_value": ({"error": "x"}, 500, None, None)})
+        with patch("kairon.actions.definitions.agent_action.ActionUtility.execute_request_async",
+                   **patch_kwargs), \
+             patch("kairon.actions.definitions.agent_action.IntegrationProcessor.create_agent_action_token",
+                   return_value="tok"), \
+             patch("kairon.actions.definitions.agent_action.ActionUtility.trigger_action_failure_mail") as mail, \
+             patch("kairon.actions.definitions.agent_action.ActionServerLogs") as log_cls:
+            log_cls.return_value.save = MagicMock()
+            result = await ActionAgent(f"bot_env_fail_{kind}", f"env_fail_{kind}").execute(
+                dispatcher, tracker, {}, action_call={})
+        assert len(dispatcher.messages) == 1
+        assert dispatcher.messages[0]["text"] == "I have failed to process your request."
+        assert not dispatcher.messages[0].get("custom")
+        mail.assert_called_once()
+        assert result["kairon_action_response"] == "I have failed to process your request."
+        log = log_cls.call_args[1]
+        assert log["bot_response"] == "I have failed to process your request."
+        assert log["status"] == STATUSES.FAIL.value
+
+    @pytest.mark.asyncio
+    async def test_log_records_envelope_and_raw_api_response(self, tracker, dispatcher):
+        result, log, _ = await self._run(
+            tracker, dispatcher, "env_log", "bot_env_log", ({"output": "Hello"}, 200, None, None))
+        assert log["bot_response"] == "Hello"
+        assert log["api_response"] == str({"output": "Hello"})
+        assert log["status"] == STATUSES.SUCCESS.value
+        assert result["kairon_action_response"] == "Hello"
+
+    @pytest.mark.asyncio
+    async def test_two_configs_both_send_envelope(self, tracker, dispatcher):
+        await self._run(tracker, dispatcher, "env_cfg_a", "bot_env_cfg_a", ({"output": "A"}, 200, None, None))
+        await self._run(tracker, dispatcher, "env_cfg_b", "bot_env_cfg_b", ({"output": "B"}, 200, None, None),
+                        agent_name="Other Agent", agent_id="other-id")
+        assert [m["custom"] for m in dispatcher.messages] == [env("A"), env("B")]
+
+    # ─── markdown message ───────────────────────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_markdown_sends_one_markdown_message(self, tracker, dispatcher):
+        result, log, mail = await self._run(
+            tracker, dispatcher, "wa_md", "bot_wa_md", ({"output": "Hello"}, 200, None, None))
+        assert len(dispatcher.messages) == 1
+        message = dispatcher.messages[0]
+        assert message["custom"] == env("Hello")
+        assert not message.get("text")
+        assert len(message["custom"]["data"]) == 1
+        assert len(message["custom"]["data"][0]["children"]) == 1
+        assert result["kairon_action_response"] == "Hello"
+        assert log["bot_response"] == "Hello"
+        mail.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("raw,expected", [("a\r\n\r\nb", "a\nb"), ("**b**\n- i", "**b**\n- i"),
+                                              ("   ", "   ")])
+    async def test_markdown_markdown_data_normalized(self, tracker, dispatcher, raw, expected):
+        await self._run(tracker, dispatcher, "wa_norm", "bot_wa_norm", ({"output": raw}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env(expected)]
+
+    @pytest.mark.asyncio
+    async def test_markdown_non_string_output(self, tracker, dispatcher):
+        await self._run(tracker, dispatcher, "wa_int", "bot_wa_int", ({"output": 42}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("42")]
+
+    @pytest.mark.asyncio
+    async def test_markdown_dispatch_off_sends_nothing_slot_keeps_message(self, tracker, dispatcher):
+        result, _, _ = await self._run(tracker, dispatcher, "wa_off", "bot_wa_off",
+                                       ({"output": "Hello"}, 200, None, None), dispatch_bot_response=False)
+        assert dispatcher.messages == []
+        assert result["kairon_action_response"] == "Hello"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("response", [({"output": ""}, 200, None, None), ({}, 200, None, None),
+                                          ({"output": None}, 200, None, None)])
+    async def test_markdown_empty_output_sends_nothing(self, tracker, dispatcher, response):
+        result, log, _ = await self._run(tracker, dispatcher, "wa_empty", "bot_wa_empty", response)
+        assert dispatcher.messages == []
+        assert result["kairon_action_response"] == ""
+        assert not log["bot_response"]
+
+    @pytest.mark.asyncio
+    async def test_markdown_failure_is_plain_text_and_mails_once(self, tracker, dispatcher):
+        result, log, mail = await self._run(
+            tracker, dispatcher, "wa_fail", "bot_wa_fail", ({"error": "x"}, 500, None, None))
+        assert [m.get("text") for m in dispatcher.messages] == ["I have failed to process your request."]
+        assert not dispatcher.messages[0].get("custom")
+        assert result["kairon_action_response"] == "I have failed to process your request."
+        assert log["bot_response"] == "I have failed to process your request."
+        mail.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("channel", ["whatsapp", "telegram", None])
+    async def test_same_markdown_message_on_every_channel(self, tracker, dispatcher, channel):
+        tracker.get_latest_input_channel.return_value = channel
+        await self._run(tracker, dispatcher, "any_ch", "bot_any_ch", ({"output": "Hi"}, 200, None, None))
+        assert [m["custom"] for m in dispatcher.messages] == [env("Hi")]
 
     # ─── enum/model validation ────────────────────────────────────────────────
 
