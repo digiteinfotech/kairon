@@ -129,11 +129,15 @@ _KEY_PREFIX_RE = re.compile(r"\b(?:sk|pk|rk)[-_][A-Za-z0-9_\-]{16,}|\bAKIA[0-9A-
 # A secret-looking word, optionally prefixed (client_secret, x-api-key), then ':' / '=' / 'is', then the value
 # (quoted values may contain spaces; a closing quote after the key covers JSON like {"password":"x"}).
 _SECRET_ASSIGN_RE = re.compile(
-    r"(?i)\b((?:[a-z0-9]+[_-])*(?:password|passwd|pwd|passcode|secret|api[ _-]?key|access[ _-]?token|auth[ _-]?token|token|otp|cvv|cvc|pin))\b"
+    r"(?i)\b((?:[a-z0-9]{1,24}[_-]){0,6}(?:password|passwd|pwd|passcode|secret|api[ _-]?key|access[ _-]?token|auth[ _-]?token|token|otp|cvv|cvc|pin))\b"
     r"""(["']?\s*(?:[:=]|\bis\b)\s*)("[^"\n]*"|'[^'\n]*'|\S+)""")
 _SHORT_SECRET_RE = re.compile(r"(?i)\b(otp|pin|cvv2?|cvc)\b([\s:=\-]*(?:is\s+)?)\d{3,8}\b")
-_URL_CREDENTIALS_RE = re.compile(r"(\b[a-z][a-z0-9+.\-]*://[^\s:/@]+:)[^\s@/]+(@)", re.IGNORECASE)
-_OPAQUE_TOKEN_RE = re.compile(r"\b(?=[A-Za-z0-9_\-]*[A-Za-z])(?=[A-Za-z0-9_\-]*\d)[A-Za-z0-9_\-]{32,}\b")
+_URL_CREDENTIALS_RE = re.compile(r"(\b[a-z][a-z0-9+.\-]{0,31}://[^\s:/@]+:)[^\s@/]+(@)", re.IGNORECASE)
+# A long run of token characters; whether it is an opaque secret (has both a letter and a digit) is decided in `_opaque`.
+_OPAQUE_TOKEN_RE = re.compile(r"\b[A-Za-z0-9_\-]{32,}\b")
+# These patterns run on text typed by anonymous chat users, so none of them may backtrack quadratically: every repeat is
+# bounded or has no overlapping alternatives, and `redact_sensitive` never looks at more than MAX_REDACT_INPUT characters.
+MAX_REDACT_INPUT = 20000
 _SSN_RE = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 _AADHAAR_RE = re.compile(r"\b\d{4}\s\d{4}\s\d{4}\b")
 _CARD_RE = re.compile(r"\b(?:\d[ .\-]?){13,19}\b")
@@ -149,6 +153,12 @@ def _luhn_ok(digits: Text) -> bool:
     return total % 10 == 0
 
 
+def _opaque(match) -> Text:
+    """A 32+ character run is treated as a secret only when it mixes letters and digits (a long plain word is not one)."""
+    token = match.group(0)
+    return REDACTED if any(c.isalpha() for c in token) and any(c.isdigit() for c in token) else token
+
+
 def redact_sensitive(text: Text) -> Text:
     """
     Masks credentials and payment card numbers before text leaves Kairon (LLM server, lead webhook). Email addresses and
@@ -156,6 +166,7 @@ def redact_sensitive(text: Text) -> Text:
     checks them against what the user wrote. This is a best-effort pattern filter, not a guarantee that no personal
     data is present.
     """
+    text = (text or "")[-MAX_REDACT_INPUT:]         # the newest text wins, as everywhere else in the transcript
     text = _PRIVATE_KEY_RE.sub(REDACTED, text)
     text = _JWT_RE.sub(REDACTED, text)
     text = _BEARER_RE.sub(lambda m: f"{m.group(1)} {REDACTED}", text)
@@ -163,7 +174,7 @@ def redact_sensitive(text: Text) -> Text:
     text = _URL_CREDENTIALS_RE.sub(lambda m: f"{m.group(1)}{REDACTED}{m.group(2)}", text)
     text = _SECRET_ASSIGN_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", text)
     text = _SHORT_SECRET_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", text)
-    text = _OPAQUE_TOKEN_RE.sub(REDACTED, text)
+    text = _OPAQUE_TOKEN_RE.sub(_opaque, text)
     text = _SSN_RE.sub(REDACTED, text)
     text = _AADHAAR_RE.sub(REDACTED, text)
 
