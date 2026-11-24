@@ -73,6 +73,27 @@ class PreFlightValidator:
             raise AppException(f"Pre-flight infrastructure failure: required apps not available on the Bench: {', '.join(missing)}.")
         logger.info("[PreFlightValidator] Runner pre-flight validation completed successfully.")
 
+    @staticmethod
+    def _exec_in_container(container_name: str, *command: str, **options):
+        """Runs `docker exec <container> <command>` with a 30 s limit; a hung container is reported, never waited on."""
+        try:
+            return run_docker(["docker", "exec", container_name, *command], capture_output=True, timeout=30, **options)
+        except TimeoutExpired:
+            raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
+
+    @classmethod
+    def _check_app_is_present(cls, container_name: str, app: str):
+        """The app's repository must exist in the container and be listed in sites/apps.txt (needed by `bench new-site`)."""
+        if cls._exec_in_container(container_name, "test", "-d", f"apps/{app}").returncode != 0:
+            raise AppException(
+                f"Pre-flight infrastructure failure: Required application repository '{app}' is missing from container apps directory. "
+                f"Please run 'bench get-app {app}' during image build."
+            )
+        registered = cls._exec_in_container(
+            container_name, "bash", "-c", f"grep -q '^{app}$' sites/apps.txt || echo '{app}' >> sites/apps.txt")
+        if registered.returncode != 0:
+            raise AppException(f"Pre-flight infrastructure failure: Application '{app}' could not be registered in sites/apps.txt.")
+
     @classmethod
     def validate_infrastructure(cls, container_name: str, site_name: str, plan: ProvisioningPlan, is_upgrade: bool = False):
         """
@@ -89,52 +110,20 @@ class PreFlightValidator:
         logger.info(f"[PreFlightValidator] Validating infrastructure for container '{container_name}', site '{site_name}'...")
 
         # 1. Verify backend container running via docker exec test
-        test_cmd = ["docker", "exec", container_name, "bench", "--version"]
-        try:
-            res = run_docker(test_cmd, capture_output=True, text=True, timeout=30)
-        except TimeoutExpired:
-            raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
+        res = cls._exec_in_container(container_name, "bench", "--version", text=True)
         if res.returncode != 0:
             raise AppException(
                 f"Pre-flight infrastructure failure: Container '{container_name}' is not running or 'bench' CLI unavailable. "
                 f"Stderr: {res.stderr or res.stdout}"
             )
-
         logger.info(f"[PreFlightValidator] Bench CLI responsive: {res.stdout.strip()}")
 
         # 2. Check site existence
-        if not is_upgrade:
-            check_site_cmd = ["docker", "exec", container_name, "test", "-d", f"sites/{site_name}"]
-            try:
-                site_res = run_docker(check_site_cmd, capture_output=True, timeout=30)
-            except TimeoutExpired:
-                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
-            if site_res.returncode == 0:
-                raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
+        if not is_upgrade and cls._exec_in_container(container_name, "test", "-d", f"sites/{site_name}").returncode == 0:
+            raise AppException(f"Pre-flight infrastructure failure: Site '{site_name}' already exists in bench sites directory.")
 
         # 3. Verify required apps exist in container apps directory & sites/apps.txt
         for app in plan.apps:
-            check_app_cmd = ["docker", "exec", container_name, "test", "-d", f"apps/{app}"]
-            try:
-                app_res = run_docker(check_app_cmd, capture_output=True, timeout=30)
-            except TimeoutExpired:
-                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
-            if app_res.returncode != 0:
-                raise AppException(
-                    f"Pre-flight infrastructure failure: Required application repository '{app}' is missing from container apps directory. "
-                    f"Please run 'bench get-app {app}' during image build."
-                )
-
-            # Ensure app is registered in sites/apps.txt for bench new-site compatibility
-            ensure_apps_cmd = [
-                "docker", "exec", container_name, "bash", "-c",
-                f"grep -q '^{app}$' sites/apps.txt || echo '{app}' >> sites/apps.txt"
-            ]
-            try:
-                registered = run_docker(ensure_apps_cmd, capture_output=True, timeout=30)
-            except TimeoutExpired:
-                raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
-            if registered.returncode != 0:
-                raise AppException(f"Pre-flight infrastructure failure: Application '{app}' could not be registered in sites/apps.txt.")
+            cls._check_app_is_present(container_name, app)
 
         logger.info("[PreFlightValidator] Infrastructure pre-flight validation completed successfully.")
