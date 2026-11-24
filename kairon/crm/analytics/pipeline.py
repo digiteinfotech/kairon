@@ -38,7 +38,7 @@ DEFAULTS = {
     "max_transcript_chars": 6000,
     "lease_seconds": 600,
     "time_budget_seconds": 420,     # per bot: stop starting new analyses for that bot after this long
-    "pass_budget_seconds": 240,     # whole pass: stop starting new bots after this long (the job runs every 5 minutes)
+    "cycle_budget_seconds": 240,     # whole pass: stop starting new bots after this long (the job runs every 5 minutes)
     "max_attempts": 5,
     "retention_days": 30,           # contact details kept on dead-lettered / no-contact records this long (delivered ones: none)
     "backoff_base_seconds": 60,
@@ -71,7 +71,7 @@ class LeadAnalysisPipeline:
         bots = self._bots_least_recently_run_first()
         started = time.monotonic()
         for position, bot in enumerate(bots):
-            if time.monotonic() - started > cfg("pass_budget_seconds"):
+            if time.monotonic() - started > cfg("cycle_budget_seconds"):
                 # The pass is bounded so the invitation sweeps that follow it start on time and the shared event actor is
                 # not held for minutes. Bots not started keep the oldest `last_run_at`, so they go first next pass.
                 summary["deferred_bots"] = len(bots) - position

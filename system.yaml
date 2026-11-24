@@ -352,7 +352,7 @@ crm:
     lookback_seconds: ${CRM_LEAD_LOOKBACK_SECONDS:900}
     max_attempts: ${CRM_LEAD_MAX_ATTEMPTS:5}
     max_transcript_chars: ${CRM_LEAD_MAX_TRANSCRIPT_CHARS:6000}
-    pass_budget_seconds: ${CRM_LEAD_PASS_BUDGET:240}   # stop starting new bots after this long in one scheduled pass
+    cycle_budget_seconds: ${CRM_LEAD_PASS_BUDGET:240}   # stop starting new bots after this long in one scheduled pass
     retention_days: ${CRM_LEAD_RETENTION_DAYS:30}   # contact details kept on dead-lettered / no-contact records this long
 
 store_page:
