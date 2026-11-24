@@ -94,6 +94,14 @@ model:
 action:
   url: ${ACTION_SERVER_URL:"http://localhost:5055/webhook"}
   request_timeout: ${ACTION_SERVER_REQUEST_TIMEOUT:60}
+  keenable:
+    # Keyless calls use the shared public endpoint, which is rate limited per IP, so it is off by default.
+    allow_keyless: ${KEENABLE_ALLOW_KEYLESS:false}
+    search_url: ${KEENABLE_SEARCH_URL:"https://api.keenable.ai/v1/search"}
+    public_search_url: ${KEENABLE_PUBLIC_SEARCH_URL:"https://api.keenable.ai/v1/search/public"}
+    search_timeout: ${KEENABLE_SEARCH_TIMEOUT:10}
+    # Sent as X-Keenable-Title; Keenable uses it to identify the calling app.
+    app_title: ${KEENABLE_APP_TITLE:"kairon"}
 
 web_search:
   trigger_task: ${WEB_SEARCH_TRIGGER_TASK:false}

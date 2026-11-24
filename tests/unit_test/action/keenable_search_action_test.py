@@ -7,7 +7,9 @@ from kairon.shared.utils import Utility
 Utility.load_system_metadata()
 
 import pytest
+import requests
 import responses
+from unittest.mock import patch
 from mongoengine import connect
 from pydantic import ValidationError
 from rasa_sdk import Tracker
@@ -23,10 +25,18 @@ from kairon.shared.actions.exception import ActionFailure
 from kairon.shared.actions.models import ActionType
 from kairon.shared.actions.utils import ActionUtility
 from kairon.shared.data.action_serializer import ActionSerializer
-from kairon.shared.data.constant import KEENABLE_SEARCH_PUBLIC_URL, KEENABLE_SEARCH_URL, STATUSES
+from kairon.shared.data.constant import KEENABLE_API_KEY_REQUIRED, STATUSES
 from kairon.shared.data.data_models import KeenableSearchActionRequest
 from kairon.shared.data.processor import MongoProcessor
 from kairon.shared.models import StoryStepType
+
+KEENABLE_SEARCH_URL = "https://api.keenable.ai/v1/search"
+KEENABLE_SEARCH_PUBLIC_URL = "https://api.keenable.ai/v1/search/public"
+
+
+def keenable_config(**overrides):
+    return patch.dict(Utility.environment['action']['keenable'], overrides)
+
 
 KEENABLE_RESPONSE = {
     "query": "what is kanban",
@@ -70,7 +80,8 @@ class TestKeenableSearchAction:
                 matchers.header_matcher({"X-Keenable-Title": "kairon"}),
             ],
         )
-        results = ActionUtility.perform_keenable_search(None, 'what is kanban', num=2)
+        with keenable_config(allow_keyless=True):
+            results = ActionUtility.perform_keenable_search(None, 'what is kanban', num=2)
         assert results == [
             {
                 'title': 'What Is Kanban? An Overview Of The Kanban Method',
@@ -101,11 +112,38 @@ class TestKeenableSearchAction:
         assert len(results) == 2
         assert results[0]['link'] == 'https://www.digite.com/kanban/what-is-kanban/'
 
+    def test_keenable_config_defaults(self):
+        config = Utility.environment['action']['keenable']
+        assert config['allow_keyless'] is False
+        assert config['search_url'] == KEENABLE_SEARCH_URL
+        assert config['public_search_url'] == KEENABLE_SEARCH_PUBLIC_URL
+        assert config['search_timeout'] == 10
+        assert config['app_title'] == 'kairon'
+
+    @responses.activate
+    def test_perform_keenable_search_keyless_disabled_requires_api_key(self):
+        with pytest.raises(ActionFailure, match="api_key is required for Keenable search"):
+            ActionUtility.perform_keenable_search(None, 'what is kanban', num=1)
+        assert len(responses.calls) == 0
+
+    @responses.activate
+    def test_perform_keenable_search_uses_configured_values(self):
+        responses.add(
+            responses.POST, "https://keenable.example.com/search", json=KEENABLE_RESPONSE,
+            match=[matchers.header_matcher({"X-Keenable-Title": "my-app", "X-API-Key": "test-key"})],
+        )
+        with keenable_config(search_url="https://keenable.example.com/search", app_title="my-app",
+                             search_timeout=3), \
+                patch("kairon.shared.actions.utils.requests.post", wraps=requests.post) as mock_post:
+            results = ActionUtility.perform_keenable_search('test-key', 'what is kanban', num=1)
+        assert len(results) == 2
+        assert mock_post.call_args.kwargs['timeout'] == 3
+
     @responses.activate
     def test_perform_keenable_search_error(self):
-        responses.add(responses.POST, KEENABLE_SEARCH_PUBLIC_URL, status=429, json={"error": "Too many requests"})
+        responses.add(responses.POST, KEENABLE_SEARCH_URL, status=429, json={"error": "Too many requests"})
         with pytest.raises(ActionFailure, match="Keenable search failed with status 429"):
-            ActionUtility.perform_keenable_search(None, 'what is kanban', num=1)
+            ActionUtility.perform_keenable_search('test-key', 'what is kanban', num=1)
 
     def test_keenable_search_action_data_object_defaults(self):
         action = KeenableSearchAction(name=' Keenable_Action ', bot='test_keenable_bot', user='test_user',
@@ -118,12 +156,23 @@ class TestKeenableSearchAction:
         assert action.dispatch_response
 
     def test_keenable_search_action_request_validation(self):
-        request = KeenableSearchActionRequest(name='Keenable_Action')
+        api_key = {'value': 'KEENABLE_API_KEY', 'parameter_type': 'key_vault'}
+        request = KeenableSearchActionRequest(name='Keenable_Action', api_key=api_key)
         assert request.name == 'keenable_action'
-        assert request.api_key is None
+        assert request.api_key.value == 'KEENABLE_API_KEY'
         assert request.num_results == 1
         with pytest.raises(ValidationError, match="num_results must be greater than or equal to 1!"):
-            KeenableSearchActionRequest(name='keenable_action', num_results=0)
+            KeenableSearchActionRequest(name='keenable_action', api_key=api_key, num_results=0)
+
+    def test_keenable_search_action_request_missing_api_key(self):
+        with pytest.raises(ValidationError) as e:
+            KeenableSearchActionRequest(name='keenable_action')
+        assert KEENABLE_API_KEY_REQUIRED in str(e.value)
+
+    def test_keenable_search_action_request_keyless_allowed(self):
+        with keenable_config(allow_keyless=True):
+            request = KeenableSearchActionRequest(name='keenable_action')
+        assert request.api_key is None
 
     def test_keenable_search_action_registered(self):
         assert ActionType.keenable_search_action.value == 'keenable_search_action'

@@ -4800,8 +4800,8 @@ class MongoProcessor:
 
     def add_keenable_search_action(self, action_config: dict, bot: Text, user: Text):
         """
-        Add a new Keenable search action. The api_key is optional: without it,
-        the keyless Keenable public endpoint is used.
+        Add a new Keenable search action. Without an api_key, the keyless Keenable
+        public endpoint is used (only allowed when action.keenable.allow_keyless is on).
 
         :param action_config: Keenable search action configuration
         :param bot: bot id

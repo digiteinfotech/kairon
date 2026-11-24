@@ -28,8 +28,7 @@ from .models import ActionParameterType, HttpRequestContentType, EvaluationType,
 from ..admin.processor import Sysadmin
 from ..cloud.utils import CloudUtility
 from ..constants import KAIRON_USER_MSG_ENTITY, PluginTypes, EventClass
-from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE, KEENABLE_SEARCH_PUBLIC_URL, KEENABLE_SEARCH_URL, \
-    KEENABLE_SEARCH_TIMEOUT
+from ..data.constant import REQUEST_TIMESTAMP_HEADER, TASK_TYPE, KEENABLE_API_KEY_REQUIRED
 from ..data.data_objects import Slots, KeyVault
 from ..plugins.factory import PluginFactory
 from ..rest_client import AioRestClient
@@ -585,28 +584,33 @@ class ActionUtility:
         """
         Searches the web with Keenable (https://docs.keenable.ai).
 
-        Without an api_key the keyless public endpoint is used; with a key,
-        the keyed endpoint is called with the X-API-Key header.
+        With a key, the keyed endpoint is called with the X-API-Key header. Without one,
+        the keyless public endpoint is used only if action.keenable.allow_keyless is enabled.
+        Endpoints, timeout and the X-Keenable-Title value come from system.yaml (action.keenable).
 
         @param api_key: optional Keenable API key
         @param search_term: search query
         @param kwargs: num (max results) and website (restricts results to a site)
         :return: list of {'title', 'text', 'link'} dicts
         """
+        config = Utility.environment['action'].get('keenable') or {}
+        if ActionUtility.is_empty(api_key) and not config.get('allow_keyless'):
+            raise ActionFailure(KEENABLE_API_KEY_REQUIRED)
         num_results = kwargs.get("num") or 1
         website = kwargs.get("website")
         body = {"query": search_term, "max_results": num_results, "snippet_max_length": 300}
         if website:
             body["site"] = website
-        headers = {"Content-Type": "application/json", "X-Keenable-Title": "kairon"}
+        # Keenable uses X-Keenable-Title to identify the calling app.
+        headers = {"Content-Type": "application/json", "X-Keenable-Title": config.get('app_title') or 'kairon'}
         if ActionUtility.is_empty(api_key):
-            url = KEENABLE_SEARCH_PUBLIC_URL
+            url = config['public_search_url']
         else:
-            url = KEENABLE_SEARCH_URL
+            url = config['search_url']
             headers["X-API-Key"] = api_key
         results = []
         try:
-            response = requests.post(url, json=body, headers=headers, timeout=KEENABLE_SEARCH_TIMEOUT)
+            response = requests.post(url, json=body, headers=headers, timeout=config.get('search_timeout', 10))
             if response.status_code != 200:
                 raise ActionFailure(f"Keenable search failed with status {response.status_code}: {response.text[:500]}")
             for item in response.json().get("results") or []:

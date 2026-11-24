@@ -226,11 +226,9 @@ ALLOWED_DOMAIN_FORMATS = {'domain.yml', 'domain.yaml'}
 ALLOWED_CONFIG_FORMATS = {'config.yaml', 'config.yml'}
 ALLOWED_RULES_FORMATS = {'rules.yaml', 'rules.yml'}
 ALLOWED_ACTIONS_FORMATS = {'actions.yaml', 'actions.yml'}
-# Keenable Search API, used by keenable_search_action (https://docs.keenable.ai).
-# The public endpoint needs no API key; the keyed endpoint takes X-API-Key.
-KEENABLE_SEARCH_PUBLIC_URL = "https://api.keenable.ai/v1/search/public"
-KEENABLE_SEARCH_URL = "https://api.keenable.ai/v1/search"
-KEENABLE_SEARCH_TIMEOUT = 10
+# Keenable endpoints, timeout and app title are configured in system.yaml under action.keenable.
+KEENABLE_API_KEY_REQUIRED = "api_key is required for Keenable search. Keyless search is disabled " \
+                            "(set action.keenable.allow_keyless to true in system.yaml to enable it)."
 ALLOWED_CHAT_CLIENT_CONFIG_FORMATS = {'chat_client_config.yml', 'chat_client_config.yaml'}
 ALLOWED_MULTIFLOW_STORIES_FORMATS = {'multiflow_stories.yaml', 'multiflow_stories.yml'}
 ALLOWED_BOT_CONTENT_FORMATS = {'bot_content.yaml', 'bot_content.yml'}

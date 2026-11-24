@@ -21,7 +21,7 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes
+    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes, KEENABLE_API_KEY_REQUIRED
 )
 from kairon.shared.actions.models import (
     ActionParameterType,
@@ -938,6 +938,12 @@ class KeenableSearchActionRequest(BaseModel):
     num_results: int = 1
     dispatch_response: bool = True
     set_slot: str = None
+
+    @validator("api_key", always=True)
+    def validate_api_key(cls, v, values, **kwargs):
+        if not v and not (Utility.environment['action'].get('keenable') or {}).get('allow_keyless'):
+            raise ValueError(KEENABLE_API_KEY_REQUIRED)
+        return v
 
     @validator("num_results")
     def validate_num_results(cls, v, values, **kwargs):

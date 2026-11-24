@@ -630,7 +630,7 @@ class GoogleSearchAction(Auditlog):
 class KeenableSearchAction(Auditlog):
     """
     Web search through the Keenable Search API (https://docs.keenable.ai).
-    api_key is optional: without it, the keyless public endpoint is used.
+    api_key is required unless action.keenable.allow_keyless is enabled in system.yaml.
     """
     name = StringField(required=True)
     api_key = EmbeddedDocumentField(CustomActionRequestParameters, default=None)
