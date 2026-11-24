@@ -80,6 +80,9 @@ class ProvisioningService:
         # Allow retry transitions from failed states to their corresponding running/retrying state
         elif current_status == CRMOnboardingStatus.FAILED_BENCH.value and new_status == CRMOnboardingStatus.BENCH_RUNNING:
             is_valid = True
+        # A retry that fails again at the same stage is recorded too (new error and timestamps), not dropped as "invalid".
+        elif current_status == new_status.value and "FAILED" in new_status.value:
+            is_valid = True
 
         if not is_valid:
             logger.error(f"[{self.provisioning_id}] Invalid state transition: {current_status} -> {new_status.value}. Preserving existing state.")

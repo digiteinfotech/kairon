@@ -267,12 +267,13 @@ class BaseProvisioner(ABC):
     ):
         """Creates logs directory, runs bench migrate, initializes Company, Fiscal Year, User with email/roles, and sets setup_complete."""
         if self.runner:
-            try:
-                self._op("prepare_tenant", site_name, {
-                    "admin_email": (admin_email or "").strip(), "company_name": (company_name or "").strip(),
-                    "abbr": abbr, "default_currency": default_currency, "country": country})
-            except Exception as e:
-                logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
+            # Migration and the company/user setup are what make the site usable, so a failure here fails the step (and the
+            # caller's rollback removes the half-built site) instead of letting provisioning go on.
+            result = self._op("prepare_tenant", site_name, {
+                "admin_email": (admin_email or "").strip(), "company_name": (company_name or "").strip(),
+                "abbr": abbr, "default_currency": default_currency, "country": country})
+            if not result.ok:
+                raise AppException(f"Tenant preparation (migrate, company, user) failed: {result.error}")
             return
         try:
             # 1. Ensure logs directory exists for site
@@ -280,7 +281,12 @@ class BaseProvisioner(ABC):
 
             # 2. Run bench migrate to sync app fixtures & doctypes
             logger.info(f"[BaseProvisioner] Running bench migrate on site '{site_name}'...")
-            run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"], capture_output=True)
+            migrate = run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"],
+                                 capture_output=True, text=True)
+            if migrate.returncode != 0:
+                # Without a migrated schema the site is unusable; fail the step (the caller rolls the half-built site back).
+                raise AppException("bench migrate failed: "
+                                   + self._scrub(migrate.stderr or migrate.stdout, admin_password, self.bench_config.get("db_password")))
 
             # Ensure CRM frontend assets exist in Nginx frontend container.
             # Piped directly between two subprocesses (no shell=True) to avoid
@@ -418,11 +424,18 @@ except Exception:
 frappe.db.commit()
 frappe.clear_cache()
 """
-            run_docker([
+            setup = run_docker([
                 "docker", "exec", "-w", "/home/frappe/frappe-bench/sites", self.container_name,
                 "/home/frappe/frappe-bench/env/bin/python", "-c", py_script
-            ], capture_output=True)
-            logger.info(f"[BaseProvisioner] Configured user '{admin_email}' and company '{c_name}' on '{site_name}'.")
+            ], capture_output=True, text=True)
+            if setup.returncode != 0:
+                # The company and user are created again, over REST, by the later steps, so this is reported, not fatal.
+                logger.error(f"[BaseProvisioner] The user/company setup script exited with {setup.returncode}: "
+                             + self._scrub(setup.stderr or setup.stdout, admin_password, self.bench_config.get("db_password"))[:500])
+            else:
+                logger.info(f"[BaseProvisioner] Configured user '{admin_email}' and company '{c_name}' on '{site_name}'.")
+        except AppException:
+            raise
         except Exception as e:
             logger.warning(f"[BaseProvisioner] Failed user setup or migrate: {e}")
 
