@@ -312,7 +312,6 @@ crm:
     url: ${CRM_METERING_URL}
     event_secret: ${CRM_METERING_EVENT_SECRET}
   bench:
-    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
     frontend_container_name: ${BENCH_FRONTEND_CONTAINER_NAME}   # optional: unset => derived from container_name (backend -> frontend, same Compose project)
     db_host: ${BENCH_DB_HOST:"db"}
@@ -337,8 +336,6 @@ crm:
       job_timeout_seconds: ${BENCH_RUNNER_JOB_TIMEOUT:1200}
     sso_allow_insecure_http: ${BENCH_SSO_ALLOW_INSECURE_HTTP:false}   # local development only
     app_name: ${BENCH_APP_NAME:"frappe"}
-    invite_redirect_path: ${BENCH_INVITE_REDIRECT_PATH:"/"}
-    reconciliation_interval_minutes: ${BENCH_RECONCILE_INTERVAL:30}
     reconcile_batch_size: ${BENCH_RECONCILE_BATCH_SIZE:50}   # pending invitations the safety-net sweep examines per run
   # Optional fail-closed gate for CRM provisioning / user management: comma separated emails or "@domain" suffixes.
   # Unset => the per-bot ADMIN_ACCESS rule alone applies.

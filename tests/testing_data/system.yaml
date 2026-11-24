@@ -288,7 +288,6 @@ crm:
     url: ${CRM_METERING_URL}
     event_secret: ${CRM_METERING_EVENT_SECRET}
   bench:
-    docker_image: ${BENCH_DOCKER_IMAGE:"frappe/erpnext:v16.27.0"}
     container_name: ${BENCH_CONTAINER_NAME:"frappe-backend-1"}
 
 store_page:
