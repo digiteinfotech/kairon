@@ -131,8 +131,10 @@ class PreFlightValidator:
                 f"grep -q '^{app}$' sites/apps.txt || echo '{app}' >> sites/apps.txt"
             ]
             try:
-                run_docker(ensure_apps_cmd, capture_output=True, timeout=30)
+                registered = run_docker(ensure_apps_cmd, capture_output=True, timeout=30)
             except TimeoutExpired:
                 raise AppException(f"Pre-flight infrastructure failure: Container '{container_name}' did not respond within 30s.")
+            if registered.returncode != 0:
+                raise AppException(f"Pre-flight infrastructure failure: Application '{app}' could not be registered in sites/apps.txt.")
 
         logger.info("[PreFlightValidator] Infrastructure pre-flight validation completed successfully.")

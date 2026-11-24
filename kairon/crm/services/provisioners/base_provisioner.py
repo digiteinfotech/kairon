@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 from kairon.exceptions import AppException
 from kairon.crm.models import CRMClientDetails
 from kairon.crm.services.bench_runner import BenchResult, get_bench_runner
-from kairon.crm.services.docker_utils import PIPE, popen_docker, resolve_container_name, run_docker
+from kairon.crm.services.docker_utils import PIPE, TimeoutExpired, popen_docker, resolve_container_name, run_docker
 from kairon.crm.services.provisioning_models import ProvisioningPlan
 from kairon.crm.services.site_naming import clean_site_name
 
@@ -87,7 +87,10 @@ class BaseProvisioner(ABC):
             "--install-app", install_app,
         ]
         logger.info(f"[{label}] Running command: docker exec {self.container_name} bench new-site {site_name} --install-app {install_app}")
-        res = run_docker(cmd, capture_output=True, text=True)
+        try:
+            res = run_docker(cmd, capture_output=True, text=True, timeout=1800)
+        except TimeoutExpired:
+            raise AppException(f"[{label}] Bench new-site did not finish within 30 minutes.")
         if res.returncode != 0:
             output = self._scrub(res.stderr or res.stdout, admin_password, self.bench_config.get("db_password"))
             raise AppException(f"[{label}] Bench new-site failed: {output}")
@@ -281,8 +284,11 @@ class BaseProvisioner(ABC):
 
             # 2. Run bench migrate to sync app fixtures & doctypes
             logger.info(f"[BaseProvisioner] Running bench migrate on site '{site_name}'...")
-            migrate = run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"],
-                                 capture_output=True, text=True)
+            try:
+                migrate = run_docker(["docker", "exec", self.container_name, "bench", "--site", site_name, "migrate"],
+                                     capture_output=True, text=True, timeout=1800)
+            except TimeoutExpired:
+                raise AppException("bench migrate did not finish within 30 minutes.")
             if migrate.returncode != 0:
                 # Without a migrated schema the site is unusable; fail the step (the caller rolls the half-built site back).
                 raise AppException("bench migrate failed: "

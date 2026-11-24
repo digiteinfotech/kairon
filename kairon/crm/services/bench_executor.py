@@ -4,7 +4,7 @@ from loguru import logger
 from kairon.exceptions import AppException
 from kairon.shared.utils import Utility
 from kairon.crm.services.bench_runner import get_bench_runner
-from kairon.crm.services.docker_utils import resolve_container_name, run_docker
+from kairon.crm.services.docker_utils import TimeoutExpired, resolve_container_name, run_docker
 from kairon.crm.services.preflight_validator import PreFlightValidator
 from kairon.crm.services.provisioners.base_provisioner import BaseProvisioner
 from kairon.crm.services.provisioners.factory import ProvisionerFactory
@@ -101,7 +101,10 @@ class BenchExecutor:
             "bench", "--site", site_name, "set-admin-password", admin_password
         ]
         logger.info(f"Running command: docker exec {container_name} bench --site {site_name} set-admin-password ********")
-        result = run_docker(cmd, capture_output=True, text=True)
+        try:
+            result = run_docker(cmd, capture_output=True, text=True, timeout=120)
+        except TimeoutExpired:
+            raise AppException("Setting the admin password timed out.")
         if result.returncode != 0:
             output = BaseProvisioner._scrub(result.stderr or result.stdout, admin_password)    # the command line carried the password
             raise AppException(f"Failed to set admin password on retry: {output}")

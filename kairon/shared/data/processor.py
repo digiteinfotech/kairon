@@ -1759,6 +1759,10 @@ class MongoProcessor:
                 is_default=True
             )
 
+        if MongoProcessor.is_crm_enabled(bot):
+            # A domain upload replaces the slots; a CRM bot keeps its lead-deduplication slot.
+            MongoProcessor.ensure_crm_lead_slot(bot, user)
+
     def fetch_slots(self, bot: Text, status=True):
         """
         fetches slots
@@ -6188,8 +6192,6 @@ class MongoProcessor:
         if not Utility.is_exist(BotSettings, raise_error=False, bot=bot, status=True):
             raise AppException(f"Bot Settings for the bot not found")
 
-        settings = BotSettings.objects(bot=bot, status=True).get()
-        previous_enable_crm = bool(settings.enable_crm)
         analytics = Analytics(**bot_settings.get("analytics"))
         update_kwargs = {
             "set__analytics": analytics,
@@ -6199,34 +6201,38 @@ class MongoProcessor:
         if bot_settings.get("enable_crm") is not None:
             update_kwargs["set__enable_crm"] = bot_settings["enable_crm"]
 
-        settings.update(**update_kwargs)
+        # The previous document is returned by the very write that changes it, so the CRM
+        # transition is decided from what this write actually replaced (no read-then-write race).
+        previous = BotSettings.objects(bot=bot, status=True).modify(new=False, **update_kwargs)
+        previous_enable_crm = bool(previous and previous.enable_crm)
 
         new_enable_crm = bot_settings.get("enable_crm")
+        if new_enable_crm:
+            # The slot must exist before anything is told the bot is CRM-enabled.
+            MongoProcessor.ensure_crm_lead_slot(bot, user)
         if new_enable_crm is not None and bool(new_enable_crm) != previous_enable_crm:
             # Best-effort notification of the new state to Metering; never raises.
             from kairon.crm.metering_sync import CRMMeteringSync
             CRMMeteringSync.publish_bot_state(bot, user, bool(new_enable_crm))
 
-        if bot_settings.get("enable_crm"):
-            # Scoped to CRM-enabled bots only. Not a KaironSystemSlots enum member --
-            # add_system_required_slots() bulk-provisions every enum member for every
-            # bot unconditionally (both its "non_conversational" and "conversational"
-            # loops iterate the whole enum), so making this an enum member would leak
-            # it onto bots that never enable CRM. This is required so
-            # ActionERPNextCRMLeadQualified's idempotency guard
-            # (tracker.get_slot(ALREADY_QUALIFIED_SLOT)) actually persists across turns
-            # instead of silently no-oping on an undeclared slot.
-            MongoProcessor().add_slot(
-                {
-                    "name": "kairon_lead_qualified_sent",
-                    "type": "any",
-                    "initial_value": None,
-                    "influence_conversation": False,
-                },
-                bot,
-                user,
-                raise_exception_if_exists=False,
-            )
+    @staticmethod
+    def ensure_crm_lead_slot(bot: Text, user: Text):
+        """
+        The lead action's "already sent" guard needs this slot, for CRM-enabled bots only. It is not a
+        KaironSystemSlots member because add_system_required_slots() creates every member for every bot.
+        Also called after a domain upload, which replaces the bot's slots.
+        """
+        MongoProcessor().add_slot(
+            {
+                "name": "kairon_lead_qualified_sent",
+                "type": "any",
+                "initial_value": None,
+                "influence_conversation": False,
+            },
+            bot,
+            user,
+            raise_exception_if_exists=False,
+        )
 
     @staticmethod
     def enable_llm_faq(bot: Text, user: Text):
