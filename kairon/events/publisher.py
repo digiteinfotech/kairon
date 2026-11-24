@@ -102,7 +102,7 @@ class KaironEventPublisher:
         except Exception as e:
             # Log the class only: the exception text can echo the URL.
             logger.error(f"[KaironEventPublisher] Failed to dispatch event {event.event_id}: {type(e).__name__}")
-            raise AppException(f"Webhook dispatch failed: {str(e)}")
+            raise AppException(f"Webhook dispatch failed: {type(e).__name__}")
 
     @classmethod
     def request_signed(

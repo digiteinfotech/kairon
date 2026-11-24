@@ -41,7 +41,10 @@ class ConversationSource:
         with client as client:
             coll = client.get_database().get_collection(FLATTENED_CONVERSATIONS)
             rows = list(coll.find(
-                {"bot": bot, "type": USER_TURN_TYPE, "sender_id": sender_id, "timestamp": {"$lte": until_ts}},
+                # Callback-generated messages are excluded here as in `changed_senders` (and as the history API does): they
+                # never triggered the analysis and must not reach the LLM or the lead's transcript.
+                {"bot": bot, "type": USER_TURN_TYPE, "tag": {"$ne": "callback_message"}, "sender_id": sender_id,
+                 "timestamp": {"$lte": until_ts}},
                 {"_id": 0, "timestamp": 1, "data.user_input": 1, "data.bot_response": 1},
             ).sort("timestamp", -1).limit(max_turns))
         turns = []
