@@ -608,9 +608,10 @@ class ActionUtility:
         else:
             url = config['search_url']
             headers["X-API-Key"] = api_key
+        timeout = int(config.get('search_timeout') or 10)
         results = []
         try:
-            response = requests.post(url, json=body, headers=headers, timeout=config.get('search_timeout', 10))
+            response = requests.post(url, json=body, headers=headers, timeout=timeout)
             if response.status_code != 200:
                 raise ActionFailure(f"Keenable search failed with status {response.status_code}: {response.text[:500]}")
             for item in response.json().get("results") or []:
