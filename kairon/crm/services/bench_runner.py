@@ -38,7 +38,7 @@ from kairon.exceptions import AppException
 
 OPERATIONS = ("health", "site_exists", "list_apps", "new_site", "install_app", "drop_site", "set_admin_password",
               "set_encryption_key", "set_homepage", "prepare_tenant", "finalize_tenant", "reload_workers")
-GLOBAL_OPERATIONS = ("health", "reload_workers")
+GLOBAL_OPERATIONS = ("health", "list_apps", "reload_workers")     # about the Bench as a whole, not one site
 READ_ONLY_OPERATIONS = ("health", "site_exists", "list_apps")   # never replayed from a cached job: they must observe now
 EXECUTION_MODES = ("docker", "runner")
 SITE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,59}\.[a-z0-9]([a-z0-9.-]{0,120}[a-z0-9])?$")
