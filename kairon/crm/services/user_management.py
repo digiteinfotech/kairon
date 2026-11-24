@@ -77,6 +77,7 @@ class CRMUserManagement:
         record = CRMInvitation(
             bot=bot, user=actor, site_name=doc.site_name, company=doc.erpnext_company or doc.company_name,
             email=email, roles=roles, invitation_status=CRMInvitationStatus.PENDING.value, invited_at=datetime.utcnow(),
+            origin="connector",
         ).save()
         delivery = cls._deliver(doc, email, result.get("setup_path"), record)
         return {"email": email, "roles": roles, "status": "invited", "email_delivery": delivery}
@@ -91,7 +92,7 @@ class CRMUserManagement:
         result = ConnectorUserClient(bot).call("resend_invitation", {"email": email, "purpose": "user"}) or {}
         if not record:
             record = CRMInvitation(bot=bot, user=actor, site_name=doc.site_name,
-                                   company=doc.erpnext_company or doc.company_name, email=email)
+                                   company=doc.erpnext_company or doc.company_name, email=email, origin="connector")
         record.invited_at = datetime.utcnow()
         record.invitation_status = CRMInvitationStatus.PENDING.value
         record.save()

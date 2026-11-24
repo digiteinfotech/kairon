@@ -203,6 +203,10 @@ class CRMInvitation(Auditlog):
     )
     # ERPNext's internal UserInvitation document name (for cancel/resend operations)
     erpnext_invitation_id = StringField()
+    # "erpnext": ERPNext's own User Invitation (accepted through the webhook / the safety-net sweep).
+    # "connector": a setup link issued by the tenant's kairon_connector, which assigns the company permission when it creates
+    # the user; ERPNext has no invitation record for it, so the sweep never looks at these.
+    origin = StringField(default="erpnext", choices=["erpnext", "connector"])
     invited_at = DateTimeField(default=datetime.utcnow)
     accepted_at = DateTimeField()
     cancelled_at = DateTimeField()

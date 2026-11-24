@@ -232,15 +232,15 @@ async def handle_invitation_webhook(
     - **Security Note**: Validated via secret HMAC-SHA256 signature verification.
     - **Expected Behavior**: Validates signature, verifies user document status, and completes user onboarding synchronization.
     """
+    # The body is parsed by the processor only after its signature has been verified, so unauthenticated garbage gets the
+    # same 401 as a bad signature and never reaches the JSON parser.
     raw_body = await request.body()
-    payload = await request.json()
     # The processor does blocking database and ERPNext HTTP work; keep it off the event loop.
     result = await run_in_threadpool(
         CRMProcessor.handle_invitation_webhook,
         site_name=x_kairon_site,
         raw_body=raw_body,
         signature_header=x_frappe_webhook_signature,
-        payload=payload,
         bot=bot,
     )
     return Response(data=result, message="Webhook processed successfully")

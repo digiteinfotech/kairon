@@ -352,6 +352,18 @@ class CRMProcessor:
         return {"login_url": url, "expires_in": CRMProcessor.LOGIN_LINK_TTL_SECONDS}
 
     @staticmethod
+    def _refuse_a_second_tenant(bot: str, company_name: str):
+        """
+        A bot has one CRM tenant: status, details, user management, the login link, lead dispatch and the invitations all find
+        it by bot. A second company would get a Bench site and database that none of those could see or manage.
+        """
+        wanted = company_name.strip().lower()
+        other = next((d for d in CRMClientDetails.objects(bot=bot) if (d.company_name or "").strip().lower() != wanted), None)
+        if other:
+            raise AppException(f"This chatbot already has a CRM tenant ('{other.company_name}'). "
+                               "Delete it before onboarding a different company.")
+
+    @staticmethod
     def validate_tenant_config(
         bot: str, company_name: str, abbr: str, default_currency: str, country: str
     ) -> dict:
@@ -371,6 +383,7 @@ class CRMProcessor:
             raise AppException(
                 "Company name can only contain letters, numbers, spaces and underscores."
             )
+        CRMProcessor._refuse_a_second_tenant(bot, company_name)
         existing = CRMClientDetails.objects(
             bot=bot, company_name__iexact=company_name.strip()
         ).first()
@@ -465,6 +478,7 @@ class CRMProcessor:
             raise AppException(str(e))
 
         # 1. Save or get the initial CRMClientDetails document
+        CRMProcessor._refuse_a_second_tenant(bot, company_name)
         existing = CRMClientDetails.objects(bot=bot, company_name__iexact=company_name.strip()).first()
         email_changed = False
         if existing and existing.crm_admin_email != crm_admin_email:
@@ -629,11 +643,12 @@ class CRMProcessor:
         site_name: str,
         raw_body: bytes,
         signature_header: str,
-        payload: dict,
+        payload: dict = None,
         bot: str = None,
     ) -> dict:
         """
-        Processes an incoming ERPNext webhook for a UserInvitation acceptance.
+        Processes an incoming ERPNext webhook for a UserInvitation acceptance. `payload` is parsed from `raw_body`, after the
+        signature has been verified, unless the caller already has it.
         Called by the public webhook receiver endpoint.
 
         Security: Verifies the HMAC-SHA256 signature using the per-site webhook_secret
@@ -658,9 +673,18 @@ class CRMProcessor:
             hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).digest()
         ).decode("utf-8")
 
-        if not hmac.compare_digest(expected_sig, signature_header or ""):
+        # Compared as bytes: compare_digest raises TypeError on a non-ASCII str, which would be a 500 on a public endpoint.
+        if not hmac.compare_digest(expected_sig.encode("utf-8"), (signature_header or "").encode("utf-8", "replace")):
             logger.error(f"[CRMProcessor] Webhook signature mismatch for site '{site_name}'")
             raise AppException("Invalid webhook signature.")
+
+        if payload is None:
+            try:
+                payload = json.loads(raw_body.decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                raise AppException("Invalid webhook payload.")
+        if not isinstance(payload, dict):
+            raise AppException("Invalid webhook payload.")
 
         # Extract invitation data
         status = payload.get("status")
@@ -748,7 +772,8 @@ class CRMProcessor:
         bench_config = crm_config.get("bench", {})
         app_name = bench_config.get("app_name", "frappe")
 
-        query = CRMInvitation.objects(invitation_status=CRMInvitationStatus.PENDING.value)
+        # Only invitations that exist in ERPNext (rows without an origin predate the field and are ERPNext's).
+        query = CRMInvitation.objects(invitation_status=CRMInvitationStatus.PENDING.value, origin__ne="connector")
         if bot:
             query = query.filter(bot=bot)
 
