@@ -336,6 +336,16 @@ class ActionUtility:
         return k_faq_action_config
 
     @staticmethod
+    def __markdown_text(event: dict):
+        """Text of a custom markdown message sent by the bot, or None."""
+        custom = (event.get("data") or {}).get("custom")
+        if isinstance(custom, dict) and custom.get("type") == "markdown" and isinstance(custom.get("data"), list):
+            texts = [str(child["text"]) for element in custom["data"] if isinstance(element, dict)
+                     for child in (element.get("children") or []) if child.get("text") is not None]
+            return "\n".join(texts) or None
+        return None
+
+    @staticmethod
     def prepare_bot_responses(tracker: Tracker, last_n):
         """
         Retrieve user question and bot responses from tracker events and formats them
@@ -345,6 +355,9 @@ class ActionUtility:
         for event in reversed(tracker.events):
             if event.get('event') == 'bot' and event.get("text"):
                 message_trail.insert(0, {"role": "assistant", "content": event.get('text')})
+                last_n -= 1
+            elif event.get('event') == 'bot' and ActionUtility.__markdown_text(event):
+                message_trail.insert(0, {"role": "assistant", "content": ActionUtility.__markdown_text(event)})
                 last_n -= 1
             elif event.get('event') == 'user':
                 if message_trail and message_trail[0].get("role") == "user":
