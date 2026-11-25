@@ -4816,7 +4816,7 @@ def test_export_collection_data_csv():
         url=f"/api/bot/{pytest.bot}/data/collection/Test_Export_CSV/export",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    CollectionData.objects(collection_name="test_export_csv").delete()
+    CollectionData.objects(collection_name="test_export_csv", bot=pytest.bot).delete()
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     assert response.headers["content-disposition"] == 'attachment; filename="test_export_csv.csv"'
@@ -4835,7 +4835,7 @@ def test_export_collection_data_csv_fields_and_decrypt_flag():
     only = client.request("QUERY", url=url, params={"fields": ["city", "pin"], "decrypt_secure": True}, headers=headers)
     default = client.request("QUERY", url=url, params={"fields": ["city", "pin"]}, headers=headers)
     only_secure = client.request("QUERY", url=url, params={"fields": ["pin"]}, headers=headers)
-    CollectionData.objects(collection_name="test_export_fields").delete()
+    CollectionData.objects(collection_name="test_export_fields", bot=pytest.bot).delete()
     assert only.text.strip().splitlines() == ["city,pin", "Pune,4321"]
     assert default.text.strip().splitlines() == ["city", "Pune"]
     assert "No exportable fields" in only_secure.json()["message"]
@@ -4852,7 +4852,7 @@ def test_export_collection_data_csv_date_range():
     outside = client.request("QUERY", url=url, params={"to_date": "2000-01-01"}, headers=headers)
     inverted = client.request("QUERY", url=url, params={"from_date": "2024-02-01", "to_date": "2024-01-01"}, headers=headers)
     invalid = client.request("QUERY", url=url, params={"from_date": "not-a-date"}, headers=headers)
-    CollectionData.objects(collection_name="test_export_dates").delete()
+    CollectionData.objects(collection_name="test_export_dates", bot=pytest.bot).delete()
     assert inside.text.strip().splitlines() == ["a", "x"]
     assert "not found or has no data" in outside.json()["message"]
     assert "from_date cannot be after to_date" in inverted.json()["message"]
@@ -4869,7 +4869,7 @@ def test_export_collection_data_csv_name_with_space_and_empty():
         url=f"/api/bot/{pytest.bot}/data/collection/export space name/export",
         headers={"Authorization": pytest.token_type + " " + pytest.access_token},
     )
-    CollectionData.objects(collection_name="export space name").delete()
+    CollectionData.objects(collection_name="export space name", bot=pytest.bot).delete()
     assert response.status_code == 200
     assert response.headers["content-disposition"] == 'attachment; filename="export_space_name.csv"'
     missing = client.request("QUERY",
