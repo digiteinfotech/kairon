@@ -351,8 +351,9 @@ def test_run_pyscript_with_script_errors():
     assert not actual['success']
     assert actual['error_code'] == 422
     assert not actual['data']
-    assert actual['message'] == "Script execution error: import of 'numpy' is unauthorized"
-
+    assert "import of 'numpy' is unauthorized" in actual['message']
+    assert "Error on Line 2:" in actual['message']
+    assert "Code: import numpy as np" in actual['message']
 
 def test_run_pyscript_with_interpreter_error():
     script = """
@@ -373,4 +374,5 @@ def test_run_pyscript_with_interpreter_error():
     assert not actual['success']
     assert actual['error_code'] == 422
     assert not actual['data']
-    assert actual['message'] == 'Script execution error: ("Line 2: SyntaxError: expected \':\' at statement: \'for i in 10\'",)'
+    assert 'SyntaxError' in actual['message']
+    assert 'for i in 10' in actual['message']

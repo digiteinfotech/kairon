@@ -1,7 +1,5 @@
 from typing import Optional
 from blacksheep import Router, Request, Response as BSResponse, json
-from blacksheep.contents import JSONContent
-
 from loguru import logger
 
 from kairon.async_callback.auth import CallbackAuthenticator
@@ -58,14 +56,14 @@ async def process_router_message(token: str, identifier: Optional[str] = None, r
         logger.info(f"Data from request: {data}")
         print(request_source)
 
-        data, message, error_code, response_type, redirect_url= await CallbackProcessor.process_async_callback_request(
+        data, message, error_code, response_type, redirect_url, trace_id= await CallbackProcessor.process_async_callback_request(
             token, identifier, data, request_source
         )
 
         if redirect_url:
             return CallbackUtility.redirect_response(redirect_url)
 
-        return CallbackUtility.return_response(data, message, error_code, response_type)
+        return CallbackUtility.return_response(data, message, error_code, response_type, trace_id)
     except AppException as ae:
         logger.error(f"AppException: {ae}")
         return CallbackUtility.error_response(str(ae), 400)
