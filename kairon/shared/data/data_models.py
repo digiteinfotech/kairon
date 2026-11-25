@@ -941,8 +941,14 @@ class KeenableSearchActionRequest(BaseModel):
 
     @validator("api_key", always=True)
     def validate_api_key(cls, v, values, **kwargs):
-        if not v and not (Utility.environment['action'].get('keenable') or {}).get('allow_keyless'):
-            raise ValueError(KEENABLE_API_KEY_REQUIRED)
+        if not (Utility.environment['action'].get('keenable') or {}).get('allow_keyless'):
+            literal_empty = (
+                v is not None
+                and v.parameter_type == ActionParameterType.value
+                and Utility.check_empty_string(v.value)
+            )
+            if not v or literal_empty:
+                raise ValueError(KEENABLE_API_KEY_REQUIRED)
         return v
 
     @validator("num_results")

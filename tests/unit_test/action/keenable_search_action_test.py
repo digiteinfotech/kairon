@@ -174,6 +174,48 @@ class TestKeenableSearchAction:
             request = KeenableSearchActionRequest(name='keenable_action')
         assert request.api_key is None
 
+    def test_keenable_search_action_request_rejects_empty_literal_api_key(self):
+        for api_key in (
+            {'parameter_type': 'value', 'value': ''},
+            {'parameter_type': 'value', 'value': '   '},
+        ):
+            with pytest.raises(ValidationError) as e:
+                KeenableSearchActionRequest(name='keenable_action', api_key=api_key)
+            assert KEENABLE_API_KEY_REQUIRED in str(e.value)
+
+        request = KeenableSearchActionRequest(
+            name='keenable_action',
+            api_key={'parameter_type': 'slot', 'value': 'keenable_key'},
+        )
+        assert request.api_key.parameter_type == 'slot'
+        assert request.api_key.value == 'keenable_key'
+
+        request = KeenableSearchActionRequest(
+            name='keenable_action',
+            api_key={'parameter_type': 'key_vault', 'value': 'KEENABLE_API_KEY'},
+        )
+        assert request.api_key.parameter_type == 'key_vault'
+
+        request = KeenableSearchActionRequest(
+            name='keenable_action',
+            api_key={'parameter_type': 'sender_id'},
+        )
+        assert request.api_key.parameter_type == 'sender_id'
+
+        request = KeenableSearchActionRequest(
+            name='keenable_action',
+            api_key={'parameter_type': 'value', 'value': 'present-key'},
+        )
+        assert request.api_key.value == 'present-key'
+
+        with keenable_config(allow_keyless=True):
+            request = KeenableSearchActionRequest(
+                name='keenable_action',
+                api_key={'parameter_type': 'value', 'value': ''},
+            )
+        assert request.api_key is not None
+        assert request.api_key.value == ''
+
     def test_keenable_search_action_registered(self):
         assert ActionType.keenable_search_action.value == 'keenable_search_action'
         assert StoryStepType.keenable_search_action.value == 'KEENABLE_SEARCH_ACTION'
