@@ -474,7 +474,7 @@ class DataProcessor:
 
         def rows():
             buffer = io.StringIO()
-            writer = csv.writer(buffer, lineterminator="\n")
+            writer = csv.writer(buffer, lineterminator="\r\n")
             writer.writerow([_neutralise_csv_formula(label) for label in header])
             count = 0
             for item in DataProcessor.get_collection_data(

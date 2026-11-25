@@ -1942,6 +1942,15 @@ def test_export_neutralises_formula_cells_and_headers(_clean_export_collections)
     assert rows[1] == ["ok", "'=HYPERLINK(\"http://evil\")", "'@SUM(A1)", "5", "'-1+1"]
 
 
+def test_export_embedded_carriage_return_is_quoted_and_round_trips(_clean_export_collections):
+    payload = "safe\r=1+1"
+    _export_save("orders", {"a": payload})
+    content = _export_csv(EXPORT_BOT, "orders")
+    assert '"safe\r=1+1"' in content
+    rows = _export_parse(content)
+    assert len(rows) == 2 and rows[1] == [payload]
+
+
 def test_export_rows_ordered_by_timestamp(_clean_export_collections):
     for v in ["1", "2", "3"]:
         _export_save("orders", {"a": v})
@@ -2097,7 +2106,7 @@ def _export_dated_orders():
     from datetime import datetime
     for v in ["jan", "feb1", "feb2", "mar"]:
         _export_save("orders", {"a": v})
-    _export_stamp_rows("orders", [datetime(2024, 1, 15, 10), datetime(2024, 2, 1, 0), datetime(2024, 2, 29, 23, 59),
+    _export_stamp_rows("orders", [datetime(2024, 1, 15, 10), datetime(2024, 2, 1, 0), datetime(2024, 2, 29, 23, 59, 59, 999000),
                                   datetime(2024, 3, 1, 0, 0)])
 
 
