@@ -12,7 +12,8 @@ from kairon.exceptions import AppException
 from kairon.shared.data.constant import RE_ALPHA_NUM
 from kairon.shared.data.data_objects import BotSettings
 from kairon.shared.data.processor import MongoProcessor
-from kairon.shared.pos.constants import POSType, OnboardingStatus, POS_NOTIFICATION_MESSAGES
+from kairon.shared.pos.constants import POSType, OnboardingStatus, POS_NOTIFICATION_MESSAGES, OdooPOSActions, \
+    OdooPOSMenus
 from kairon.shared.pos.data_objects import POSClientDetails, POSUserDetails
 from kairon.shared.utils import Utility
 import httpx
@@ -1124,7 +1125,7 @@ class POSProcessor:
         from kairon.pos.definitions.factory import POSFactory
         bot_setting_obj = BotSettings.objects(bot=bot).first()
         bot_setting = bot_setting_obj.to_mongo().to_dict() if bot_setting_obj else {}
-        if MongoProcessor.is_pos_enabled(bot):
+        if bot_setting.get("pos_settings", {}).get("pos_enabled", False):
             client_details = POSProcessor.get_client_details(bot)
             pos_type = client_details.get("pos_type", "odoo")
             client_name = client_details["client_name"]
@@ -1135,3 +1136,51 @@ class POSProcessor:
             session_id = pos_response.get("session_id")
             password = POSProcessor.generate_password()
             self.create_user(session_id=session_id,bot=bot,client_name=client_name,login=email,password=password,name=email)
+
+    @staticmethod
+    def send_pos_order_notification(
+            background_tasks,
+            req,
+            result,
+            current_user
+    ):
+        base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
+        action = OdooPOSActions.ACTION_POS_ORDER_LIST.value
+        menu = OdooPOSMenus.MENU_POS_ORDERS.value
+        company_id = req.company_id
+
+        orders_link = (
+            f"{base_url}/web#action={action}&model=pos.order"
+            f"&view_type=list&cids={company_id}&menu_id={menu}"
+        )
+
+        order = result.get("order_id", {})
+        bot = current_user.get_bot()
+
+        client_detail = POSProcessor.get_client_details(bot)
+        name = client_detail.get("client_name", "")
+
+        if company_id != 1:
+            for branch in client_detail.get("branches", []):
+                if company_id == branch["company_id"]:
+                    name = branch["branch_name"]
+                    break
+
+        notification_data = {
+            "type": "link",
+            "link": orders_link,
+            "bot_id": bot,
+            "message": POSProcessor.get_pos_notification_message(),
+            "pos_type": POSType.odoo.value,
+            "order_id": order.get("id"),
+            "pos_reference": order.get("pos_reference"),
+            "status": result.get("status"),
+            "branch_name": name,
+            "kot": result.get("kot", {}),
+        }
+
+        background_tasks.add_task(
+            POSProcessor.send_notification,
+            notification_data,
+            bot
+        )
