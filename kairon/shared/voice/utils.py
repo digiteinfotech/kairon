@@ -15,7 +15,7 @@ that reached us ended (caller hung up, bot disconnected, silence timeout, max du
 import json
 import logging
 import re
-from typing import Callable, Mapping, Optional
+from typing import Any, Callable, Mapping, Optional
 
 from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.constants import ChannelTypes, KaironSystemSlots
@@ -57,11 +57,7 @@ class VoiceUtils:
         in the message metadata. Anything else (web chat sends no channel name at all, WhatsApp, Slack, ...) is not a
         call, so call-only behaviour (placing another call, the hang-up signal) must not run there.
         """
-        channel = None
-        try:
-            channel = tracker.get_latest_input_channel()
-        except Exception:
-            pass
+        channel = tracker.get_latest_input_channel()
         if not isinstance(channel, str):
             channel = ((tracker.latest_message or {}).get("metadata") or {}).get(
                 "channel_type"
@@ -322,14 +318,19 @@ class VoiceUtils:
         for name, value in (slot_values or {}).items():
             if name in _SYSTEM_SLOTS or value in (None, "", [], {}):
                 continue
-            try:
-                safe = json.loads(json.dumps(value, default=str))
-            except Exception:
-                continue
-            if len(json.dumps(safe, default=str)) > MAX_CARRY_OVER_SLOT_CHARS:
+            safe = VoiceUtils._json_safe(value)
+            if safe is None or len(json.dumps(safe)) > MAX_CARRY_OVER_SLOT_CHARS:
                 continue
             carried[name] = safe
         return carried
+
+    @staticmethod
+    def _json_safe(value) -> Any:
+        """``value`` as plain JSON data (unknown objects become strings); ``None`` when it cannot be represented."""
+        try:
+            return json.loads(json.dumps(value, default=str))
+        except Exception:
+            return None
 
     @staticmethod
     def load_call_context(bot: str, call_sid: str) -> dict:

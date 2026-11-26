@@ -433,7 +433,7 @@ class TestVoiceCallGuard:
         if via == "input_channel":
             tracker.get_latest_input_channel.return_value = channel
         else:
-            tracker.get_latest_input_channel.side_effect = Exception("no channel")
+            tracker.get_latest_input_channel.return_value = None
             tracker.latest_message = {"text": "call me", "metadata": {"channel_type": channel}}
         return tracker
 

@@ -1239,7 +1239,7 @@ class TestSharedVoiceChannelHelper:
     def test_missing_latest_message_is_not_a_voice_call(self):
         from kairon.shared.voice.utils import VoiceUtils
         tracker = MagicMock()
-        tracker.get_latest_input_channel.side_effect = Exception("x")
+        tracker.get_latest_input_channel.return_value = None
         tracker.latest_message = None
         assert VoiceUtils.is_voice_conversation(tracker) is False
 
@@ -1312,7 +1312,7 @@ class TestExotelChannelConfigValidation:
         with patch.object(Utility, "encrypt_message", side_effect=lambda v: f"enc:{v}"):
             config = dict(base)
             Utility.validate_voice_provider(config, ValueError)
-            assert config["subdomain"] and config["subdomain"].endswith("exotel.com")
+            assert config["subdomain"] == Utility.environment["voice"]["exotel"]["subdomain"] == "api.exotel.com"
             assert config["api_token"] == "enc:t" and config["sample_rate"] == 8000
             with pytest.raises(ValueError, match="Invalid subdomain"):
                 Utility.validate_voice_provider({**base, "subdomain": "evil.example.com"}, ValueError)
