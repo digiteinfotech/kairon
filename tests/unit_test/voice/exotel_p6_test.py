@@ -407,6 +407,46 @@ class TestSilenceHandling:
         assert h.tts.spoken == ["Hello there"]
 
     @pytest.mark.asyncio
+    async def test_terminator_only_dtmf_does_not_disable_silence_handling(self):
+        h = _Harness(config=self._cfg(timeout_message="Bye."))
+        await h.begin()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "#"}))
+        await asyncio.sleep(0.3)
+        await h.ack()
+        await asyncio.sleep(0.05)
+        assert "Bye." in h.tts.spoken and h.session.closed
+        assert h.ended[0][1] == "noinput_timeout"
+
+    @pytest.mark.asyncio
+    async def test_partial_dtmf_entry_is_abandoned_on_silence(self):
+        h = _Harness(config=self._cfg(timeout_message="Bye."))
+        await h.begin()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        await asyncio.sleep(0.3)
+        await h.ack()
+        await asyncio.sleep(0.05)
+        assert h.session._dtmf_buffer == "" and h.session.closed
+
+    @pytest.mark.asyncio
+    async def test_timeout_farewell_is_recorded_in_history(self):
+        h = _Harness(config=self._cfg(timeout_message="Bye."))
+        await h.begin()
+        await asyncio.sleep(0.25)
+        await h.ack()
+        assert any(["Bye."] == msgs for _, msgs, _ in h.recorded)
+
+    @pytest.mark.asyncio
+    async def test_agent_hangup_fallback_farewell_is_recorded(self):
+        async def runner(text, sid, meta):
+            return h.AgentTurn(messages=[], hangup=True)
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5, timeout_message="Bye now"))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        await h.ack()
+        assert any(["Bye now"] == msgs for _, msgs, _ in h.recorded)
+
+    @pytest.mark.asyncio
     async def test_no_reprompt_after_call_closed(self):
         h = _Harness(config=self._cfg())
         await h.begin()
@@ -423,7 +463,172 @@ class TestSilenceHandling:
         assert h.session.max_call_duration == 0.0
 
 
+class TestSessionRaces:
+    """Timers and flags that used to interleave badly: each test pins one race."""
+
+    @pytest.mark.asyncio
+    async def test_dtmf_after_close_or_while_ending_is_ignored(self):
+        h = _Harness(welcome=None, config={"dtmf": {"inter_digit_timeout": 5}})
+        await h.begin()
+        h.session._ending = True
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        assert h.session._dtmf_buffer == "" and h.session._dtmf_timer is None
+        h.session._ending = False
+        await h.session.close()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        assert h.session._dtmf_buffer == "" and h.session._dtmf_timer is None
+
+    @pytest.mark.asyncio
+    async def test_keypad_turn_does_not_block_the_receive_loop(self):
+        async def runner(text, sid, meta):
+            await asyncio.sleep(0.3)
+            return h.AgentTurn(messages=["done"])
+
+        h = _Harness(runner=runner, welcome=None, config={"noinput_timeout_seconds": 0})
+        await h.begin()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        started = asyncio.get_event_loop().time()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "#"}))
+        assert asyncio.get_event_loop().time() - started < 0.1
+        await h.session.on_message(_frame("stop", stop={"call_sid": "CALL1"}))
+        assert h.session.closed
+        await asyncio.sleep(0.05)
+        assert "done" not in h.tts.spoken
+
+    @pytest.mark.asyncio
+    async def test_welcome_does_not_block_the_receive_loop(self):
+        h = _Harness(config={"noinput_timeout_seconds": 0})
+
+        async def slow_stream(text):
+            await asyncio.sleep(0.3)
+            return False
+
+        h.session._stream_tts = slow_stream
+        await h.session.start()
+        started = asyncio.get_event_loop().time()
+        await h.session.on_message(_start())
+        assert asyncio.get_event_loop().time() - started < 0.1
+        await h.session.on_message(_frame("stop", stop={"call_sid": "CALL1"}))
+        assert h.session.closed
+
+    @pytest.mark.asyncio
+    async def test_keypad_and_spoken_turns_never_run_the_agent_together(self):
+        running, peak = [0], [0]
+
+        async def runner(text, sid, meta):
+            running[0] += 1
+            peak[0] = max(peak[0], running[0])
+            await asyncio.sleep(0.1)
+            running[0] -= 1
+            return h.AgentTurn(messages=[f"re {text}"])
+
+        h = _Harness(runner=runner, welcome=None, config={"noinput_timeout_seconds": 0})
+        await h.begin()
+        await h.stt.feed(_T("hello", True))
+        await asyncio.sleep(0.02)
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "#"}))
+        await asyncio.sleep(0.4)
+        assert peak[0] == 1
+        assert [t for t in h.tts.spoken if t.startswith("re ")] == ["re hello", "re 5"]
+
+    @pytest.mark.asyncio
+    async def test_silence_countdown_never_fires_during_an_agent_turn(self):
+        seen = []
+
+        async def runner(text, sid, meta):
+            seen.append(text)
+            await asyncio.sleep(0.4)
+            return h.AgentTurn(messages=["slow reply"])
+
+        h = _Harness(runner=runner, welcome=None, config={"noinput_timeout_seconds": 0.05, "max_noinput_attempts": 5})
+        await h.begin()
+        await h.stt.feed(_T("hello", True))
+        await asyncio.sleep(0.05)
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        await asyncio.sleep(0.25)
+        assert seen == ["hello"]
+
+    @pytest.mark.asyncio
+    async def test_two_closing_requests_play_one_goodbye(self):
+        h = _Harness(welcome=None, config={"noinput_timeout_seconds": 0})
+        await h.begin()
+        await asyncio.gather(h.session._say_and_hangup(["first bye"], "max_duration"),
+                             h.session._say_and_hangup(["second bye"], "noinput_timeout"))
+        await h.ack()
+        assert h.tts.spoken.count("first bye") + h.tts.spoken.count("second bye") == 1
+        assert [m for _, m, _ in h.recorded if m] == [["first bye"]]
+
+    @pytest.mark.asyncio
+    async def test_reprompt_cut_off_by_the_goodbye_is_not_recorded(self):
+        h = _Harness(welcome=None, config={"noinput_timeout_seconds": 0, "max_noinput_attempts": 5})
+        await h.begin()
+
+        async def cut_off(messages, final=False):
+            h.session._ending = True
+            return False
+
+        h.session._speak = cut_off
+        await h.session._on_noinput()
+        assert h.recorded == []
+
+    @pytest.mark.asyncio
+    async def test_close_cancels_pending_keypad_and_welcome_tasks(self):
+        async def runner(text, sid, meta):
+            await asyncio.sleep(5)
+            return h.AgentTurn(messages=["x"])
+
+        h = _Harness(runner=runner, welcome=None, config={"noinput_timeout_seconds": 0})
+        await h.begin()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "5"}))
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "#"}))
+        await asyncio.sleep(0.05)
+        pending = list(h.session._turn_tasks)
+        assert pending
+        await h.session.close()
+        await asyncio.sleep(0.02)
+        assert all(t.done() for t in pending) and h.session._greet_task is None
+
+
 class TestMaxCallDuration:
+
+    @pytest.mark.asyncio
+    async def test_cap_timer_starts_before_the_welcome_plays(self):
+        h = _Harness(config={"max_call_duration_seconds": 5, "noinput_timeout_seconds": 0})
+        seen = []
+
+        async def slow_stream(text):
+            seen.append(h.session._max_duration_task is not None)
+            await asyncio.sleep(0.05)
+            return False
+
+        h.session._stream_tts = slow_stream
+        await h.begin()
+        assert seen == [True]
+
+    @pytest.mark.asyncio
+    async def test_reply_finishing_after_the_goodbye_is_not_played(self):
+        async def runner(text, sid, meta):
+            await asyncio.sleep(0.25)
+            return h.AgentTurn(messages=["late reply"])
+
+        h = _Harness(runner=runner, config={"max_call_duration_seconds": 0.08, "noinput_timeout_seconds": 0,
+                                            "max_duration_message": "Time is up."})
+        await h.begin()
+        await h.stt.feed(_T("hello", True))
+        await asyncio.sleep(0.4)
+        await h.ack()
+        assert "Time is up." in h.tts.spoken and "late reply" not in h.tts.spoken
+
+    @pytest.mark.asyncio
+    async def test_queued_reply_messages_are_dropped_once_the_call_is_ending(self):
+        h = _Harness(welcome=None)
+        await h.begin()
+        h.session._ending = True
+        assert await h.session._speak(["reply"]) is False
+        assert "reply" not in h.tts.spoken
+        await h.session._speak(["farewell"], final=True)
+        assert "farewell" in h.tts.spoken
 
     def test_runtime_clamps_duration_and_survives_bad_dtmf_length(self):
         from kairon.shared.voice.constants import MAX_CALL_DURATION_LIMIT_SECONDS

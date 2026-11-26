@@ -205,6 +205,7 @@ class TestExotelSession:
         assert stt.opened
         await s.on_message(_start())
         assert s.stream_sid == "ST1" and s.call_sid == "CS1"
+        await s._greet_task
         media = [f for f in sent if f["event"] == "media"]
         marks = [f for f in sent if f["event"] == "mark"]
         assert media and marks

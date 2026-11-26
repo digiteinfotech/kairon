@@ -192,6 +192,9 @@ class ExotelCallSession:
         self._closed = False
         self._ending = False
         self._consumer_task: Optional[asyncio.Task] = None
+        self._greet_task: Optional[asyncio.Task] = None
+        self._turn_tasks: set = set()
+        self._turn_lock = asyncio.Lock()
 
         self._on_hangup = on_hangup
         self._history_recorder = history_recorder
@@ -279,10 +282,20 @@ class ExotelCallSession:
             self.metrics.call_sid = self.call_sid or self.stream_sid
         self._started_at = time.monotonic()
         self._bootstrap_task = asyncio.ensure_future(self._bootstrap_conversation())
-        if self.welcome_message:
-            await self._speak([self.welcome_message])
-        self._arm_noinput()
         self._arm_max_duration()
+        self._greet_task = asyncio.ensure_future(self._greet())
+
+    async def _greet(self) -> None:
+        """Play the welcome message, then start the silence countdown. Runs beside the websocket receive loop, which
+        must keep reading frames (caller audio, DTMF, stop) while the bot talks."""
+        try:
+            if self.welcome_message:
+                await self._speak([self.welcome_message])
+            self._arm_noinput()
+        except asyncio.CancelledError:
+            return
+        except Exception:  # pragma: no cover - see _noinput_wait
+            logger.exception("Welcome message failed bot=%s", self.bot)
 
     async def _adopt_stream_rate(self, rate: int) -> bool:
         """Make the call use the sample rate the ``start`` frame reports.
@@ -358,19 +371,27 @@ class ExotelCallSession:
     async def _on_dtmf(self, frame: InboundFrame) -> None:
         """Collect keypad digits and submit them as a turn on the terminator, the max length or the inter-digit timeout."""
         digit = frame.dtmf_digit
-        if not self.dtmf_enabled or not digit:
+        if self._closed or self._ending or not self.dtmf_enabled or not digit:
             logger.debug("DTMF ignored (enabled=%s) bot=%s", self.dtmf_enabled, self.bot)
             return
         logger.info("DTMF digit '%s' bot=%s call_sid=%s", digit, self.bot, self.call_sid)
         self._caller_active()
         if digit == self.dtmf_terminator:
-            await self._submit_dtmf()
+            self._spawn_turn(self._submit_dtmf())
             return
         self._dtmf_buffer += digit
         if len(self._dtmf_buffer) >= self.dtmf_max_length:
-            await self._submit_dtmf()
+            self._spawn_turn(self._submit_dtmf())
             return
         self._arm_dtmf_timer()
+        self._arm_noinput()
+
+    def _spawn_turn(self, coro) -> None:
+        """Run a caller turn beside the websocket receive loop (so reading frames never waits for the agent or for
+        the reply to play); the tasks are tracked so ``close`` can cancel them."""
+        task = asyncio.ensure_future(coro)
+        self._turn_tasks.add(task)
+        task.add_done_callback(self._turn_tasks.discard)
 
     async def _submit_dtmf(self) -> None:
         """Run the collected digits as one caller turn."""
@@ -379,6 +400,8 @@ class ExotelCallSession:
         self._cancel_dtmf_timer()
         if digits:
             await self._run_turn(digits)
+        else:
+            self._arm_noinput()
 
     def _arm_dtmf_timer(self) -> None:
         """(Re)start the inter-digit timeout, if one is configured."""
@@ -429,10 +452,22 @@ class ExotelCallSession:
             logger.warning("Transcript consumer ended bot=%s: %s", self.bot, e)
 
     async def _run_turn(self, text: str) -> None:
-        """Run one agent turn for what the caller said and play the reply (hanging up if the agent asked to)."""
+        """Run one agent turn for what the caller said and play the reply (hanging up if the agent asked to).
+
+        Turns are serialised (a keypad turn and a spoken turn must not run the agent at the same time), and the
+        silence countdown only restarts once the turn is over."""
         if self._closed or self._ending:
             return
         self._caller_active()
+        async with self._turn_lock:
+            rearm = await self._execute_turn(text)
+        if rearm:
+            self._arm_noinput()
+
+    async def _execute_turn(self, text: str) -> bool:
+        """The body of a turn; returns True when the silence countdown should restart."""
+        if self._closed or self._ending:
+            return False
         await self._await_bootstrap()
         self._turns += 1
         sender_id = self.call_sid or self.stream_sid or "anonymous"
@@ -443,15 +478,17 @@ class ExotelCallSession:
             logger.exception("Agent turn failed bot=%s: %s", self.bot, e)
             turn = AgentTurn(messages=["Sorry, something went wrong. Please try again."])
         agent_ms = now_ms() - agent_start
-        if turn is None:
-            return
+        if turn is None or self._closed or self._ending:
+            return False
         tts_ms = 0.0
         cache_hit = False
         if turn.messages:
             self._last_agent_message = next(
                 (m for m in reversed(turn.messages) if m and m.strip()), self._last_agent_message)
             tts_start = now_ms()
-            cache_hit = await self._speak(turn.messages)
+            if turn.hangup:
+                self._ending = True
+            cache_hit = await self._speak(turn.messages, final=turn.hangup)
             tts_ms = now_ms() - tts_start
         if self.metrics is not None:
             try:
@@ -460,8 +497,8 @@ class ExotelCallSession:
                 logger.debug("Metrics update failed bot=%s: %s", self.bot, e)
         if turn.hangup:
             await self._hangup(CallEndReason.BOT_DISCONNECT.value)
-            return
-        self._arm_noinput()
+            return False
+        return True
 
     def _caller_active(self) -> None:
         """The caller did something (spoke / pressed a key): stop the silence countdown and forgive past silence."""
@@ -475,7 +512,7 @@ class ExotelCallSession:
         if self._ending:
             return
         self._cancel_task("_noinput_task")
-        if self._closed or self.noinput_timeout <= 0:
+        if self._closed or self.noinput_timeout <= 0 or self._turn_lock.locked():
             return
         self._noinput_task = asyncio.ensure_future(self._noinput_wait())
 
@@ -493,25 +530,31 @@ class ExotelCallSession:
         """Caller stayed silent: give the agent a ``noinput`` turn (as the Twilio channel does) and reprompt with its
         reply, or the last bot message if it had none; after ``max_noinput_attempts`` say goodbye and hang up. The
         agent can end the call itself."""
-        if self._closed:
+        if self._closed or self._ending or self._turn_lock.locked():
             return
         if self._noinput_count >= self.max_noinput_attempts:
             await self._say_and_hangup([self.timeout_message], CallEndReason.NOINPUT_TIMEOUT.value)
             return
         self._noinput_count += 1
+        self._dtmf_buffer = ""
+        self._cancel_dtmf_timer()
         await self._await_bootstrap()
         sender_id = self.call_sid or self.stream_sid or "anonymous"
         try:
-            turn = await self.agent_runner(NOINPUT_TEXT, sender_id, self.metadata)
+            async with self._turn_lock:
+                turn = await self.agent_runner(NOINPUT_TEXT, sender_id, self.metadata)
         except Exception as e:
             logger.warning("Agent noinput turn failed bot=%s: %s", self.bot, e)
             turn = None
-        if self._closed:
+        if self._closed or self._ending:
             return
         agent_messages = [m for m in (turn.messages if turn else []) if m and m.strip()]
         if turn is not None and turn.hangup:
             self._ending = True
-            await self._speak(agent_messages or [self.timeout_message])
+            farewell = agent_messages or [self.timeout_message]
+            await self._speak(farewell, final=True)
+            if not agent_messages:
+                await self._record(farewell)
             await self._hangup(CallEndReason.BOT_DISCONNECT.value)
             return
         if agent_messages:
@@ -520,6 +563,8 @@ class ExotelCallSession:
         else:
             messages = [self._last_agent_message or self.reprompt_phrase]
             await self._speak(messages)
+            if self._ending:
+                return
             await self._record(messages)
         self._arm_noinput()
 
@@ -541,9 +586,12 @@ class ExotelCallSession:
             logger.exception("Max call duration handling failed bot=%s", self.bot)
 
     async def _say_and_hangup(self, messages: List[str], reason: str) -> None:
-        """Speak a final message, record it in the history and hang up."""
+        """Speak a final message, record it in the history and hang up (once: a second closing request while the
+        call is already ending is ignored)."""
+        if self._ending or self._closed:
+            return
         self._ending = True
-        await self._speak(messages)
+        await self._speak(messages, final=True)
         await self._record(messages)
         await self._hangup(reason)
 
@@ -580,15 +628,18 @@ class ExotelCallSession:
             task.cancel()
         setattr(self, attr, None)
 
-    async def _speak(self, messages: List[str]) -> bool:
+    async def _speak(self, messages: List[str], final: bool = False) -> bool:
         """Synthesise and stream each message; return True if all were served from TTS cache.
 
         Serialised: a reprompt, the max-duration goodbye and an agent reply may all want the line at once and
-        must never interleave their audio frames."""
+        must never interleave their audio frames. Once the call is ending only the closing message (``final``) may
+        play: a reply that was still queued is dropped."""
         served = False
         all_cached = True
         async with self._speak_lock:
             for message in messages:
+                if self._ending and not final:
+                    break
                 if message and message.strip():
                     served = True
                     cached = await self._stream_tts(message)
@@ -673,8 +724,11 @@ class ExotelCallSession:
         self._closed = True
         self.end_reason = self.end_reason or CallEndReason.CALLER_HANGUP.value
         self._cancel_dtmf_timer()
-        for attr in ("_noinput_task", "_max_duration_task", "_consumer_task", "_bootstrap_task"):
+        for attr in ("_noinput_task", "_max_duration_task", "_consumer_task", "_bootstrap_task", "_greet_task"):
             self._cancel_task(attr)
+        for task in list(self._turn_tasks):
+            if task is not asyncio.current_task():
+                task.cancel()
         try:
             await self.stt.close()
         except Exception as e:  # pragma: no cover - adapter specific
