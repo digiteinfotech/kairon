@@ -108,6 +108,8 @@ class _Harness:
             self.ended.append((call_sid, reason, duration))
 
         async def default_runner(text, sid, meta):
+            if text == "noinput":
+                return AgentTurn(messages=[])
             return AgentTurn(messages=[f"you said {text}"])
 
         self.stt, self.tts = _QueueSTT(), _TTS()
@@ -343,6 +345,68 @@ class TestSilenceHandling:
         assert h.tts.spoken == ["Hello there"] and not h.session.closed
 
     @pytest.mark.asyncio
+    async def test_silence_is_sent_to_the_agent_as_a_noinput_turn(self):
+        seen = []
+
+        async def runner(text, sid, meta):
+            seen.append(text)
+            return h.AgentTurn(messages=["Are you still there?"])
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        assert seen[0] == "noinput"
+        assert "Are you still there?" in h.tts.spoken
+        assert h.session._last_agent_message == "Are you still there?"
+
+    @pytest.mark.asyncio
+    async def test_agent_can_hang_up_on_noinput(self):
+        async def runner(text, sid, meta):
+            return h.AgentTurn(messages=["Goodbye then"], hangup=True)
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        await h.ack()
+        await asyncio.sleep(0.05)
+        assert "Goodbye then" in h.tts.spoken
+        assert h.session.closed and h.ended[0][1] == "bot_disconnect"
+
+    @pytest.mark.asyncio
+    async def test_agent_hangup_without_message_uses_timeout_message(self):
+        async def runner(text, sid, meta):
+            return h.AgentTurn(messages=[], hangup=True)
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5, timeout_message="Bye now"))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        await h.ack()
+        await asyncio.sleep(0.05)
+        assert "Bye now" in h.tts.spoken and h.session.closed
+
+    @pytest.mark.asyncio
+    async def test_failed_noinput_turn_falls_back_to_reprompt(self):
+        async def runner(text, sid, meta):
+            raise RuntimeError("agent down")
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        assert h.tts.spoken[1] == "I'm sorry, I didn't get that. Could you please repeat?"
+        assert not h.session.closed
+
+    @pytest.mark.asyncio
+    async def test_call_closed_during_noinput_turn_says_nothing(self):
+        async def runner(text, sid, meta):
+            await h.session.close()
+            return h.AgentTurn(messages=["late"])
+
+        h = _Harness(runner=runner, config=self._cfg(max_noinput_attempts=5))
+        await h.begin()
+        await asyncio.sleep(0.12)
+        assert h.tts.spoken == ["Hello there"]
+
+    @pytest.mark.asyncio
     async def test_no_reprompt_after_call_closed(self):
         h = _Harness(config=self._cfg())
         await h.begin()
@@ -360,6 +424,12 @@ class TestSilenceHandling:
 
 
 class TestMaxCallDuration:
+
+    def test_runtime_clamps_duration_and_survives_bad_dtmf_length(self):
+        from kairon.shared.voice.constants import MAX_CALL_DURATION_LIMIT_SECONDS
+        h = _Harness(config={"max_call_duration_seconds": 999999, "dtmf": {"max_length": "abc"}})
+        assert h.session.max_call_duration == MAX_CALL_DURATION_LIMIT_SECONDS
+        assert h.session.dtmf_max_length == 32
 
     @pytest.mark.asyncio
     async def test_call_is_ended_politely_at_the_limit(self):
@@ -553,6 +623,17 @@ class TestCallTracking:
         VoiceUtils.finish_call("bt", "S5", vc.CallEndReason.NOINPUT_TIMEOUT.value)
         assert VoiceUtils.update_call_status("bt", "S5", vc.CallStatus.ANSWERED.value, only_if_not_terminal=True) == 0
         assert ChannelLogs.objects(bot="bt", message_id="S5").get().status == "completed"
+
+    def test_terminal_guard_is_atomic_when_row_went_terminal_after_the_read(self):
+        from kairon.shared.chat.data_objects import ChannelLogs
+        from kairon.shared.voice import constants as vc
+        from kairon.shared.voice.utils import VoiceUtils
+        stale = self._row("S5b")
+        ChannelLogs.objects(id=stale.id).update(set__status="completed")
+        with patch.object(VoiceUtils, "find_call_row", return_value=stale):
+            assert VoiceUtils.update_call_status(
+                "bt", "S5b", vc.CallStatus.FAILED.value, only_if_not_terminal=True) == 0
+        assert ChannelLogs.objects(bot="bt", message_id="S5b").get().status == "completed"
 
     @pytest.mark.parametrize("provider,expected", [
         ("busy", "busy"), ("no-answer", "no-answer"), ("No_Answer", "no-answer"), ("failed", "failed"),

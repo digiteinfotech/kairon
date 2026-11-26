@@ -256,11 +256,12 @@ class VoiceUtils:
             row = VoiceUtils.find_call_row(bot, call_sid)
             if row is None:
                 return 0
-            if only_if_not_terminal and row.status in TERMINAL_STATUSES:
-                return 0
             updates = {"set__status": status}
             updates.update({f"set__data__{key}": value for key, value in extra.items()})
-            return ChannelLogs.objects(id=row.id).update(**updates)
+            query = {"id": row.id}
+            if only_if_not_terminal:
+                query["status__nin"] = list(TERMINAL_STATUSES)
+            return ChannelLogs.objects(**query).update(**updates)
         except Exception as e:
             logger.warning(
                 "Could not update call status bot=%s sid=%s: %s", bot, call_sid, e

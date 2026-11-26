@@ -54,6 +54,7 @@ PROVIDER_STATUS_MAP = {
 EXCLUDED_CARRY_OVER_SLOTS = {"session_started_metadata", "requested_slot"}
 MAX_CARRY_OVER_SLOT_CHARS = 2000
 
+NOINPUT_TEXT = "noinput"
 DEFAULT_REPROMPT_PHRASE = "I'm sorry, I didn't get that. Could you please repeat?"
 DEFAULT_TIMEOUT_MESSAGE = "We didn't hear from you. Thanks for your time. Goodbye."
 DEFAULT_MAX_DURATION_MESSAGE = "I'm sorry, we have reached the maximum call duration. Thank you for your time. Goodbye."

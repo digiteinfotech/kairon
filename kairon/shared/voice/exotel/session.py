@@ -35,6 +35,8 @@ from kairon.shared.voice.constants import (
     DEFAULT_NOINPUT_TIMEOUT_SECONDS,
     DEFAULT_REPROMPT_PHRASE,
     DEFAULT_TIMEOUT_MESSAGE,
+    MAX_CALL_DURATION_LIMIT_SECONDS,
+    NOINPUT_TEXT,
     PLAYBACK_WAIT_SECONDS,
     CallEndReason,
 )
@@ -86,7 +88,7 @@ class CallSettings:
             welcome_message=config.get("welcome_message"),
             dtmf_enabled=bool(dtmf.get("enabled", True)),
             dtmf_terminator=str(dtmf.get("terminator", "#")),
-            dtmf_max_length=int(dtmf.get("max_length", 32)),
+            dtmf_max_length=int(_non_negative_number(dtmf.get("max_length"), 32)),
             dtmf_timeout=float(dtmf.get("inter_digit_timeout", 0) or 0),
             noinput_timeout=_non_negative_number(
                 config.get("noinput_timeout_seconds"), DEFAULT_NOINPUT_TIMEOUT_SECONDS
@@ -96,7 +98,9 @@ class CallSettings:
             ),
             reprompt_phrase=config.get("reprompt_fallback_phrase") or DEFAULT_REPROMPT_PHRASE,
             timeout_message=config.get("timeout_message") or DEFAULT_TIMEOUT_MESSAGE,
-            max_call_duration=_non_negative_number(config.get("max_call_duration_seconds"), 0.0),
+            max_call_duration=min(
+                _non_negative_number(config.get("max_call_duration_seconds"), 0.0), MAX_CALL_DURATION_LIMIT_SECONDS
+            ),
             max_duration_message=config.get("max_duration_message") or DEFAULT_MAX_DURATION_MESSAGE,
         )
 
@@ -486,16 +490,37 @@ class ExotelCallSession:
             logger.exception("Silence handling failed bot=%s", self.bot)
 
     async def _on_noinput(self) -> None:
-        """Caller stayed silent: repeat the last bot message, then (after ``max_noinput_attempts``) say goodbye and hang up."""
+        """Caller stayed silent: give the agent a ``noinput`` turn (as the Twilio channel does) and reprompt with its
+        reply, or the last bot message if it had none; after ``max_noinput_attempts`` say goodbye and hang up. The
+        agent can end the call itself."""
         if self._closed:
             return
         if self._noinput_count >= self.max_noinput_attempts:
             await self._say_and_hangup([self.timeout_message], CallEndReason.NOINPUT_TIMEOUT.value)
             return
         self._noinput_count += 1
-        messages = [self._last_agent_message or self.reprompt_phrase]
-        await self._speak(messages)
-        await self._record(messages)
+        await self._await_bootstrap()
+        sender_id = self.call_sid or self.stream_sid or "anonymous"
+        try:
+            turn = await self.agent_runner(NOINPUT_TEXT, sender_id, self.metadata)
+        except Exception as e:
+            logger.warning("Agent noinput turn failed bot=%s: %s", self.bot, e)
+            turn = None
+        if self._closed:
+            return
+        agent_messages = [m for m in (turn.messages if turn else []) if m and m.strip()]
+        if turn is not None and turn.hangup:
+            self._ending = True
+            await self._speak(agent_messages or [self.timeout_message])
+            await self._hangup(CallEndReason.BOT_DISCONNECT.value)
+            return
+        if agent_messages:
+            self._last_agent_message = agent_messages[-1]
+            await self._speak(agent_messages)
+        else:
+            messages = [self._last_agent_message or self.reprompt_phrase]
+            await self._speak(messages)
+            await self._record(messages)
         self._arm_noinput()
 
     def _arm_max_duration(self) -> None:
