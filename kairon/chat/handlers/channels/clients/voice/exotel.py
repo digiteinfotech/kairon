@@ -5,6 +5,9 @@ from starlette.requests import Request
 
 from kairon.chat.handlers.channels.clients.voice.base import VoiceProviderBase
 from kairon.shared.chat.data_objects import ChannelLogs
+from kairon.shared.utils import Utility
+from kairon.shared.voice.constants import CALLBACK_AUDIT_INITIATOR, UNKNOWN_CALL_SID
+from kairon.shared.voice.utils import VoiceUtils
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +50,15 @@ class ExotelVoiceProvider(VoiceProviderBase):
         """Return True; Exotel fetches a dynamic WSS URL from the resolver endpoint."""
         return True
 
+    @classmethod
+    def normalize_config(cls, config: dict, error, registries: dict) -> None:
+        """Validate the Exotel config and default its sample rate, speech providers, call limits and subdomain."""
+        VoiceUtils.apply_exotel_defaults(config, error, registries)
+        if not config.get("subdomain"):
+            config["subdomain"] = (Utility.environment.get("voice") or {}).get("exotel", {}).get(
+                "subdomain", "api.exotel.com"
+            )
+
     def validate_signature(self, request: Request, url: str, form_params: dict) -> bool:
         # Exotel does not sign webhooks with a per-request HMAC; always accept.
         return True
@@ -64,11 +76,13 @@ class ExotelVoiceProvider(VoiceProviderBase):
         """Log Exotel call-status webhook payload to ChannelLogs."""
         form = dict(await request.form())
         call_status = form.get("Status") or form.get("CallStatus", "unknown")
-        call_sid = form.get("CallSid", "unknown")
+        call_sid = form.get("CallSid") or form.get("Sid") or UNKNOWN_CALL_SID
         logger.info("Exotel call status — bot=%s sid=%s status=%s", bot, call_sid, call_status)
+        VoiceUtils.apply_provider_status(bot, call_sid, call_status, form)
         ChannelLogs(
             type="voice",
             status=call_status,
+            initiator=CALLBACK_AUDIT_INITIATOR,
             data=form,
             message_id=call_sid,
             bot=bot,
@@ -78,7 +92,7 @@ class ExotelVoiceProvider(VoiceProviderBase):
     def validate_config(self, config: dict) -> None:
         """Raise AppException if any required Exotel credential field is absent."""
         from kairon.exceptions import AppException
-        for field in ["api_key", "api_token", "account_sid", "exophone"]:
+        for field in ["api_key", "api_token", "account_sid", "phone_number"]:
             if not config.get(field):
                 raise AppException(f"Missing required Exotel voice config field: {field}")
 
@@ -101,8 +115,7 @@ class ExotelVoiceProvider(VoiceProviderBase):
         base = Utility.environment["model"]["agent"]["url"]
         base_wss = base.replace("https://", "wss://", 1).replace("http://", "ws://", 1)
         stream_path = f"/api/bot/{bot}/channel/voice/exotel/stream/{token}"
-        query_keys = ("CallSid", "From", "To", "Direction")
-        qs = urlencode({k: v for k, v in params.items() if k in query_keys and v})
+        qs = urlencode({k: params[k] for k in ("CallSid", "Direction") if params.get(k)})
         stream_url = urljoin(base_wss, stream_path)
         if qs:
             stream_url = f"{stream_url}?{qs}"

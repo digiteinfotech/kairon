@@ -35,7 +35,7 @@ class SpeechProviderConfig(Auditlog):
 
     meta = {
         "indexes": [
-            {"fields": ["provider", "scope", "bot_id"]},
+            {"fields": ["provider", "scope", "bot_id"], "unique": True},
         ]
     }
 

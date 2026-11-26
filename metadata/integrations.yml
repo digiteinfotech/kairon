@@ -131,20 +131,25 @@ voice_channels:
       - api_key
       - api_token
       - account_sid
-      - exophone
+      - phone_number
     secret_fields:
       - api_key
       - api_token
       - account_sid
     optional_fields:
       - subdomain
-      - tts_voice
       - language
       - welcome_message
       - sample_rate
       - stt_provider
       - tts_provider
       - flow_app_id
+      - max_call_duration_seconds
+      - noinput_timeout_seconds
+      - max_noinput_attempts
+      - reprompt_fallback_phrase
+      - timeout_message
+      - max_duration_message
     disabled_fields:
       - stream_url
 

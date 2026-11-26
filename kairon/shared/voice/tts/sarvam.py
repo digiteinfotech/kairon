@@ -14,10 +14,10 @@ from typing import AsyncIterator, Optional
 from kairon.exceptions import AppException
 from kairon.shared.voice.tts.base import BaseTTS
 from kairon.shared.voice.tts.factory import TTSFactory
+from kairon.shared.voice.utils import VoiceUtils
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_ENDPOINT = "https://api.sarvam.ai/text-to-speech"
 _YIELD_CHUNK = 800  # ~50 ms of 8 kHz/16-bit audio per yield
 
 
@@ -41,9 +41,6 @@ def _wav_to_pcm(wav_bytes: bytes, target_rate: int) -> bytes:
 class SarvamTTS(BaseTTS):
     """TTS adapter that calls the Sarvam HTTP API and decodes WAV to PCM chunks."""
 
-    DEFAULT_MODEL = "bulbul:v2"
-    DEFAULT_SPEAKER = "anushka"
-
     def __init__(
         self,
         config: dict,
@@ -56,10 +53,9 @@ class SarvamTTS(BaseTTS):
         self.api_key = config.get("api_key")
         if not self.api_key:
             raise AppException("Sarvam TTS requires 'api_key' in provider config")
-        self.endpoint = config.get("tts_url") or _DEFAULT_ENDPOINT
-        self.model = config.get("tts_model") or config.get("model") or self.DEFAULT_MODEL
-        # config["speaker"] (SpeechProviderConfig) takes priority over generic voice_override
-        self.speaker = config.get("speaker") or voice or self.DEFAULT_SPEAKER
+        self.endpoint = config.get("tts_url") or VoiceUtils.provider_default("tts", "sarvam", "endpoint")
+        self.model = config.get("tts_model") or config.get("model") or VoiceUtils.provider_default("tts", "sarvam", "model")
+        self.speaker = voice or VoiceUtils.provider_default("tts", "sarvam", "speaker")
         self.language = language or config.get("language", "en-IN")
 
     async def synthesize(self, text: str) -> AsyncIterator[bytes]:

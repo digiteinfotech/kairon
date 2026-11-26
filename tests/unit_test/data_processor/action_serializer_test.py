@@ -1026,3 +1026,24 @@ def test_add_llm_type_based_on_model():
     assert data['llm_type'] in ['openai', 'openrouter']
 
     LLMSecret.objects.delete()
+
+
+def test_voice_disconnect_action_round_trip():
+    bot = "voice_disconnect_roundtrip_bot"
+    Actions(
+        name=ActionType.kairon_voice_disconnect.value,
+        type=ActionType.kairon_voice_disconnect.value,
+        bot=bot,
+        user="user",
+        status=True,
+    ).save()
+    try:
+        action_config, other_config = ActionSerializer.serialize(bot)
+        assert action_config == {ActionType.kairon_voice_disconnect.value: [{"name": "kairon_voice_disconnect"}]}
+
+        is_valid, error_summary, component_count = ActionSerializer.validate(bot, action_config, other_config)
+        assert is_valid
+        assert ActionType.kairon_voice_disconnect.value not in error_summary
+        assert ActionType.kairon_voice_disconnect.value not in component_count
+    finally:
+        Actions.objects(bot=bot).delete()

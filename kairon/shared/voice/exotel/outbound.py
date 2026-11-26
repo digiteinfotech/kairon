@@ -19,50 +19,72 @@ from typing import Optional
 
 from kairon.exceptions import AppException
 from kairon.shared.voice.base import VoiceOutboundBase
+from kairon.shared.voice.constants import MAX_CALL_DURATION_LIMIT_SECONDS
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SUBDOMAIN = "api.exotel.com"
+TIME_LIMIT_GRACE_SECONDS = 15
 
 
 class ExotelOutboundClient(VoiceOutboundBase):
     def __init__(self, account_sid: str, auth_token: str, from_number: str,
                  api_key: Optional[str] = None, api_token: Optional[str] = None,
-                 subdomain: Optional[str] = None, exophone: Optional[str] = None):
-        """Store Exotel credentials, subdomain and exophone for this client.
+                 subdomain: Optional[str] = None,
+                 time_limit: Optional[int] = None):
+        """Store Exotel credentials and subdomain for this client.
 
         :param account_sid: Exotel account SID
         :param auth_token: Exotel API token (kept for base-class parity)
-        :param from_number: caller id / exophone in the account
+        :param from_number: verified Exophone used as CallerId
         :param api_key: Exotel API key (defaults to account_sid)
         :param api_token: Exotel API token (defaults to auth_token)
         :param subdomain: Exotel API subdomain (e.g. api.exotel.com / api.in.exotel.com)
-        :param exophone: verified Exophone to use as CallerId (defaults to from_number)
+        :param time_limit: hard cap on the call length in seconds, enforced by Exotel (``TimeLimit``)
         """
         super().__init__(account_sid, auth_token, from_number)
         self.api_key = api_key or account_sid
         self.api_token = api_token or auth_token
         self.subdomain = subdomain or DEFAULT_SUBDOMAIN
-        self.exophone = exophone or from_number
+        self.time_limit = time_limit
 
     @classmethod
     def from_config(cls, config: dict) -> "ExotelOutboundClient":
         """Build a client from a decrypted Exotel channel config dict."""
+        time_limit = None
+        try:
+            max_duration = int(config.get("max_call_duration_seconds") or 0)
+        except (TypeError, ValueError):
+            max_duration = 0
+        if max_duration > 0:
+            time_limit = min(max_duration + TIME_LIMIT_GRACE_SECONDS, MAX_CALL_DURATION_LIMIT_SECONDS)
         return cls(
             account_sid=config["account_sid"],
             auth_token=config.get("api_token") or config.get("auth_token", ""),
-            from_number=config.get("exophone") or config.get("phone_number", ""),
+            from_number=config["phone_number"],
             api_key=config.get("api_key"),
             api_token=config.get("api_token"),
             subdomain=config.get("subdomain"),
-            exophone=config.get("exophone"),
+            time_limit=time_limit,
         )
 
     def _connect_url(self) -> str:
-        return (
-            f"https://{self.api_key}:{self.api_token}@{self.subdomain}"
-            f"/v1/Accounts/{self.account_sid}/Calls/connect.json"
-        )
+        return f"https://{self.subdomain}/v1/Accounts/{self.account_sid}/Calls/connect.json"
+
+    def _scrub(self, text) -> str:
+        """Remove the API key/token from any text before it goes into an error message or log."""
+        text = str(text)
+        for secret in (self.api_key, self.api_token):
+            if secret:
+                text = text.replace(secret, "***")
+        return text
+
+    def place_call(self, to_phone: str, channel_config: dict) -> str:
+        """Dial ``to_phone`` and hand the call to the channel's Exotel flow."""
+        flow_app_id = channel_config.get("flow_app_id")
+        if not flow_app_id:
+            raise AppException("flow_app_id is not configured in voice channel config")
+        return self.connect_to_flow(to_phone, flow_app_id, channel_config.get("status_url") or None)
 
     def flow_app_url(self, flow_app_id: str) -> str:
         """Build the Exotel App/flow URL that a connected call is handed to."""
@@ -89,16 +111,26 @@ class ExotelOutboundClient(VoiceOutboundBase):
         """
         import requests
 
-        payload = {"From": to_phone, "CallerId": self.exophone, "Url": twiml_url}
+        payload = {"From": to_phone, "CallerId": self.from_number, "Url": twiml_url}
+        if self.time_limit:
+            payload["TimeLimit"] = str(self.time_limit)
         if status_callback_url:
             payload["StatusCallback"] = status_callback_url
             payload["StatusCallbackMethod"] = "POST"
         try:
-            response = requests.post(self._connect_url(), data=payload, timeout=30)
+            response = requests.post(
+                self._connect_url(), data=payload, auth=(self.api_key, self.api_token), timeout=30
+            )
             response.raise_for_status()
             data = response.json()
+        except requests.exceptions.HTTPError as e:
+            status = getattr(e.response, "status_code", "")
+            reason = getattr(e.response, "reason", "") or ""
+            raise AppException(
+                self._scrub(f"Exotel outbound call failed: HTTP {status} {reason}".strip())
+            ) from None
         except Exception as e:
-            raise AppException(f"Exotel outbound call failed: {e}") from e
+            raise AppException(self._scrub(f"Exotel outbound call failed: {type(e).__name__}: {e}")) from None
         call_sid = self._parse_call_sid(data)
         if not call_sid:
             raise AppException(f"Exotel outbound call returned no Sid: {data}")

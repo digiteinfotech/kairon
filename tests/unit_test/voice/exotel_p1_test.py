@@ -272,6 +272,9 @@ class TestExotelSession:
         await s.on_message(_start())
         await stt.feed(_Transcript("bye", True))
         await asyncio.sleep(0.05)
+        assert not s._closed
+        await s.on_message(json.dumps({"event": "mark", "stream_sid": "S", "mark": {"name": s._last_mark}}))
+        await asyncio.sleep(0.05)
         assert s._closed and stt.closed
 
     @pytest.mark.asyncio

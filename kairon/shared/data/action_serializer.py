@@ -185,6 +185,8 @@ class ActionSerializer:
             return True, error_summary, component_count
 
         for action_type, actions_list in actions.items():
+            if action_type == ActionType.kairon_voice_disconnect.value:
+                continue
             if action_type not in ActionSerializer.action_lookup:
                 error_summary[action_type] = [f"Invalid action type: {action_type}."]
                 is_data_invalid = True

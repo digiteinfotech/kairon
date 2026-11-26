@@ -16,6 +16,7 @@ from typing import AsyncIterator, Optional
 from kairon.exceptions import AppException
 from kairon.shared.voice.tts.base import BaseTTS
 from kairon.shared.voice.tts.factory import TTSFactory
+from kairon.shared.voice.utils import VoiceUtils
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class PollyTTS(BaseTTS):
         self.secret_key = config.get("aws_secret_access_key")
         self.region = config.get("region", "ap-south-1")
         self.engine = config.get("engine", "neural")
-        self.voice = voice or config.get("default_voice") or "Kajal"
+        self.voice = voice or config.get("default_voice") or VoiceUtils.provider_default("tts", "polly", "speaker")
         if not self.access_key or not self.secret_key:
             raise AppException(
                 "Polly TTS requires 'aws_access_key_id' and 'aws_secret_access_key'"

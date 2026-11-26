@@ -1593,12 +1593,11 @@ class Utility:
             if encrypt and required_field in _secret_fields:
                 config[required_field] = Utility.encrypt_message(config[required_field])
         config["telephony_provider"] = provider
-        if provider == "exotel" and not config.get("subdomain"):
-            config["subdomain"] = (
-                Utility.environment.get("voice", {})
-                .get("exotel", {})
-                .get("subdomain", "api.exotel.com")
-            )
+        from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
+        VoiceProviderFactory.get_provider(provider).normalize_config(config, error, {
+            "stt_provider": Utility.system_metadata.get("stt_providers"),
+            "tts_provider": Utility.system_metadata.get("tts_providers"),
+        })
 
     @staticmethod
     def validate_channel_config(channel, config, error, encrypt=True):
