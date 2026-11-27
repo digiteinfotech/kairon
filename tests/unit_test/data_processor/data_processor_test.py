@@ -8138,6 +8138,7 @@ class TestMongoProcessor:
             }
         ], 'jira_action': [], 'email_action': [], 'zendesk_action': [],
                                  'form_validation_action': [], 'slot_set_action': [], 'google_search_action': [],
+                                 'keenable_search_action': [],
                                  'pipedrive_leads_action': [], 'two_stage_fallback': [], 'prompt_action': [],
                                  'razorpay_action': [], 'pyscript_action': [], 'database_action': [], 'live_agent_action': [],
                                  'store_page_action': [], 'agent_action': []}
