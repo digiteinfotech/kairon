@@ -511,11 +511,12 @@ class TestSessionRaces:
 
     @pytest.mark.asyncio
     async def test_inter_digit_timeout_submits_without_cancelling_its_turn(self):
-        seen = []
+        seen, completed = [], []
 
         async def runner(text, sid, meta):
             seen.append(text)
             await asyncio.sleep(0.1)
+            completed.append(text)  # only reached if the turn was not cancelled mid-flight
             return h.AgentTurn(messages=[])
 
         h = _Harness(runner=runner, welcome=None,
@@ -524,8 +525,9 @@ class TestSessionRaces:
         await h.session.on_message(_frame("dtmf", dtmf={"digit": "1"}))
         await asyncio.sleep(0.05)  # timeout fired, turn running
         await h.session.on_message(_frame("dtmf", dtmf={"digit": "2"}))  # re-arms the timer mid-turn
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.4)
         assert seen == ["1", "2"]
+        assert completed == ["1", "2"]
 
     def test_bad_dtmf_config_falls_back(self):
         from kairon.shared.voice.exotel.session import CallSettings
@@ -651,6 +653,26 @@ class TestSessionRaces:
         await asyncio.sleep(0.02)
         assert all(t.done() for t in pending) and h.session._greet_task is None
 
+    @pytest.mark.asyncio
+    async def test_close_cancels_a_welcome_that_is_still_playing(self):
+        started, never = asyncio.Event(), asyncio.Event()
+        h = _Harness(config={"noinput_timeout_seconds": 0})
+
+        async def blocked_stream(text):
+            started.set()
+            await never.wait()
+            return False
+
+        h.session._stream_tts = blocked_stream
+        await h.session.start()
+        await h.session.on_message(_start())
+        await asyncio.wait_for(started.wait(), 2)
+        greet = h.session._greet_task
+        assert greet is not None and not greet.done()
+        await h.session.close()
+        await asyncio.wait_for(asyncio.gather(greet, return_exceptions=True), 2)
+        assert greet.done()
+
 
 class TestMaxCallDuration:
 
@@ -670,15 +692,24 @@ class TestMaxCallDuration:
 
     @pytest.mark.asyncio
     async def test_reply_finishing_after_the_goodbye_is_not_played(self):
+        entered, release = asyncio.Event(), asyncio.Event()
+
         async def runner(text, sid, meta):
-            await asyncio.sleep(0.25)
+            entered.set()
+            await release.wait()
             return h.AgentTurn(messages=["late reply"])
 
         h = _Harness(runner=runner, config={"max_call_duration_seconds": 0.08, "noinput_timeout_seconds": 0,
                                             "max_duration_message": "Time is up."})
         await h.begin()
         await h.stt.feed(_T("hello", True))
-        await asyncio.sleep(0.4)
+        await asyncio.wait_for(entered.wait(), 2)  # the agent turn is in flight...
+        while not h.session._ending:  # ...when the cap ends the call
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0.05)
+        release.set()  # only now does the agent answer
+        while h.session._turn_lock.locked():
+            await asyncio.sleep(0.01)
         await h.ack()
         assert "Time is up." in h.tts.spoken and "late reply" not in h.tts.spoken
 
