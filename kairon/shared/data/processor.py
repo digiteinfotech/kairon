@@ -5111,6 +5111,7 @@ class MongoProcessor:
             if self.get_row_count(SlotMapping, bot, slot=slot_name, status=True) > 0:
                 raise AppException("Cannot delete slot without removing its mappings!")
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
+            resolved_slot_name = getattr(slot, 'name', slot_name)
             forms_with_slot = Forms.objects(
                 bot=bot, status=True, required_slots__in=[slot_name]
             )
@@ -5121,14 +5122,14 @@ class MongoProcessor:
                 bot=bot, status=True, set_slot=slot_name
             )
             keenable_search_action_with_slot = KeenableSearchAction.objects(
-                Q(set_slot__iexact=slot.name)
+                Q(set_slot__iexact=resolved_slot_name)
                 | (
                     Q(search_term__parameter_type=ActionParameterType.slot.value)
-                    & Q(search_term__value__iexact=slot.name)
+                    & Q(search_term__value__iexact=resolved_slot_name)
                 )
                 | (
                     Q(api_key__parameter_type=ActionParameterType.slot.value)
-                    & Q(api_key__value__iexact=slot.name)
+                    & Q(api_key__value__iexact=resolved_slot_name)
                 ),
                 bot=bot, status=True,
             )
@@ -5448,6 +5449,7 @@ class MongoProcessor:
         action_config.update(self.load_form_validation_action(bot))
         action_config.update(self.load_slot_set_action(bot))
         action_config.update(self.load_google_search_action(bot))
+        action_config.update(self.load_keenable_search_action(bot))
         action_config.update(self.load_pipedrive_leads_action(bot))
         action_config.update(self.load_two_stage_fallback_action_config(bot))
         action_config.update(self.load_prompt_action(bot))
@@ -5531,6 +5533,18 @@ class MongoProcessor:
         return {
             ActionType.google_search_action.value: list(
                 self.list_google_search_actions(bot, False)
+            )
+        }
+
+    def load_keenable_search_action(self, bot: Text):
+        """
+        Loads Keenable search actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {
+            ActionType.keenable_search_action.value: list(
+                self.list_keenable_search_actions(bot, False)
             )
         }
 
