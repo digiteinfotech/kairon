@@ -85,7 +85,7 @@ from kairon.shared.data.data_objects import (TrainingExamples,
                                              ModelTraining, StoryEvents, Stories, ResponseCustom, ResponseText,
                                              Rules, Configs,
                                              Utterances, BotSettings, ChatClientConfig, LookupTables, Forms,
-                                             SlotMapping, KeyVault, MultiflowStories, LLMSettings,
+                                             SlotMapping, KeyVault, MultiflowStories, LLMSettings, POSSettings,
                                              MultiflowStoryEvents, Synonyms,
                                              Lookup, POSIntegrations, PetpoojaSyncConfig
                                              )
@@ -21401,7 +21401,7 @@ class TestModelProcessor:
         u1.type = 'nlu'
         u1.bot = bot1["_id"].__str__()
         u1.user = "divya"
-        BotSettings(bot=u1.bot, user="test", pos_enabled=False).save()
+        BotSettings(bot=u1.bot, user="test", pos_settings=POSSettings(pos_enabled=False)).save()
         u1.save()
 
         u2 = ModelTestingLogs()
@@ -21409,7 +21409,7 @@ class TestModelProcessor:
         u2.type = 'nlu'
         u2.bot = bot2["_id"].__str__()
         u2.user = "divya"
-        BotSettings(bot=u2.bot, user="test", pos_enabled=False).save()
+        BotSettings(bot=u2.bot, user="test", pos_settings=POSSettings(pos_enabled=False)).save()
         u2.save()
         result = AccountProcessor.get_model_testing_accuracy_of_all_accessible_bots(1, "divya.veeravelly@digite.com")
         assert result[bot1["_id"].__str__()] == 0.6424565337899992

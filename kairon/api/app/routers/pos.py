@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Query, Security, Path, BackgroundTasks
 
-from kairon import Utility
 from kairon.pos.definitions.factory import POSFactory
-from kairon.shared.pos.constants import POSType, OdooPOSActions, OdooPOSMenus
+from kairon.shared.pos.constants import POSType
 from kairon.shared.pos.models import (
     LoginRequest, ClientRequest, POSOrderRequest, BranchRequest, UserAccessRequest
 )
@@ -111,6 +110,7 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
     logger.info(f"request payload: {req}")
     result = pos_processor.create_pos_order(
         session_id=session_id,
+        bot=current_user.get_bot(),
         products=[p.dict() for p in req.products],
         partner_id=req.partner_id,
         company_id=req.company_id,
@@ -120,38 +120,21 @@ async def create_order(background_tasks: BackgroundTasks, req: POSOrderRequest, 
         note=req.note,
     )
 
-    if result["status"] == "created":
-        base_url = Utility.environment["pos"]["odoo"]["odoo_url"]
-        action = OdooPOSActions.ACTION_POS_ORDER_LIST.value
-        menu = OdooPOSMenus.MENU_POS_ORDERS.value
-        company_id = req.company_id
-        orders_link = f"{base_url}/web#action={action}&model=pos.order&view_type=list&cids={company_id}&menu_id={menu}"
-        order = result.get("order_id", {})
-        client_detail = pos_processor.get_client_details(current_user.get_bot())
-        name = client_detail.get("client_name", "")
-        if not req.company_id == 1:
-            for branch in client_detail["branches"]:
-                if req.company_id == branch["company_id"]:
-                    name = branch["branch_name"]
-                    break
-
-        background_tasks.add_task(
-            pos_processor.send_notification,
-            {
-                "type": "link",
-                "link": orders_link,
-                "bot_id": current_user.get_bot(),
-                "message": pos_processor.get_pos_notification_message(),
-                "pos_type": POSType.odoo.value,
-                "order_id": order.get("id"),
-                "pos_reference": order.get("pos_reference"),
-                "status": result.get("status"),
-                "branch_name": name,
-                "kot": result.get("kot", {}),
-            },
-            current_user.get_bot()
+    if result["status"] in ["created", "accepted"]:
+        pos_processor.send_pos_order_notification(
+            background_tasks,
+            req,
+            result,
+            current_user
         )
-    return Response(data=result, message="POS order created")
+
+        message = (
+            "POS order created"
+            if result["status"] == "created"
+            else "POS order accepted"
+        )
+        return Response(data=result, message=message)
+
 
 @router.post("/pos_order/accept/{order_id}", response_model=Response)
 def accept_order(
