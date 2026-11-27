@@ -54,7 +54,7 @@ class ExotelOutboundClient(VoiceOutboundBase):
         time_limit = None
         try:
             max_duration = int(config.get("max_call_duration_seconds") or 0)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             max_duration = 0
         if max_duration > 0:
             time_limit = min(max_duration + TIME_LIMIT_GRACE_SECONDS, MAX_CALL_DURATION_LIMIT_SECONDS)

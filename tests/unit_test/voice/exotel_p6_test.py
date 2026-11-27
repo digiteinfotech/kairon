@@ -479,6 +479,68 @@ class TestSessionRaces:
         assert h.session._dtmf_buffer == "" and h.session._dtmf_timer is None
 
     @pytest.mark.asyncio
+    async def test_back_to_back_keypad_entries_stay_separate(self):
+        seen = []
+
+        async def runner(text, sid, meta):
+            seen.append(text)
+            return h.AgentTurn(messages=[])
+
+        h = _Harness(runner=runner, welcome=None, config={"noinput_timeout_seconds": 0})
+        await h.begin()
+        for digit in "12#34#":  # no yield to the loop between frames
+            await h.session.on_message(_frame("dtmf", dtmf={"digit": digit}))
+        await asyncio.sleep(0.05)
+        assert seen == ["12", "34"]
+
+    @pytest.mark.asyncio
+    async def test_entry_after_max_length_flush_is_not_merged(self):
+        seen = []
+
+        async def runner(text, sid, meta):
+            seen.append(text)
+            return h.AgentTurn(messages=[])
+
+        h = _Harness(runner=runner, welcome=None,
+                     config={"noinput_timeout_seconds": 0, "dtmf": {"max_length": 2}})
+        await h.begin()
+        for digit in "1234":
+            await h.session.on_message(_frame("dtmf", dtmf={"digit": digit}))
+        await asyncio.sleep(0.05)
+        assert seen == ["12", "34"]
+
+    @pytest.mark.asyncio
+    async def test_inter_digit_timeout_submits_without_cancelling_its_turn(self):
+        seen = []
+
+        async def runner(text, sid, meta):
+            seen.append(text)
+            await asyncio.sleep(0.1)
+            return h.AgentTurn(messages=[])
+
+        h = _Harness(runner=runner, welcome=None,
+                     config={"noinput_timeout_seconds": 0, "dtmf": {"inter_digit_timeout": 0.02}})
+        await h.begin()
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "1"}))
+        await asyncio.sleep(0.05)  # timeout fired, turn running
+        await h.session.on_message(_frame("dtmf", dtmf={"digit": "2"}))  # re-arms the timer mid-turn
+        await asyncio.sleep(0.3)
+        assert seen == ["1", "2"]
+
+    def test_bad_dtmf_config_falls_back(self):
+        from kairon.shared.voice.exotel.session import CallSettings
+        cfg = CallSettings.from_config({"dtmf": {"max_length": 0, "inter_digit_timeout": "abc"}})
+        assert cfg.dtmf_max_length == 1 and cfg.dtmf_timeout == 0.0
+        cfg = CallSettings.from_config({"dtmf": {"inter_digit_timeout": -3}})
+        assert cfg.dtmf_timeout == 0.0
+
+    def test_outbound_time_limit_ignores_infinite_cap(self):
+        from kairon.shared.voice.exotel.outbound import ExotelOutboundClient
+        client = ExotelOutboundClient.from_config(
+            {"account_sid": "a", "phone_number": "p", "max_call_duration_seconds": float("inf")})
+        assert client.time_limit is None
+
+    @pytest.mark.asyncio
     async def test_keypad_turn_does_not_block_the_receive_loop(self):
         async def runner(text, sid, meta):
             await asyncio.sleep(0.3)

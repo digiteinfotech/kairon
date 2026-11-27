@@ -88,8 +88,8 @@ class CallSettings:
             welcome_message=config.get("welcome_message"),
             dtmf_enabled=bool(dtmf.get("enabled", True)),
             dtmf_terminator=str(dtmf.get("terminator", "#")),
-            dtmf_max_length=int(_non_negative_number(dtmf.get("max_length"), 32)),
-            dtmf_timeout=float(dtmf.get("inter_digit_timeout", 0) or 0),
+            dtmf_max_length=max(1, int(_non_negative_number(dtmf.get("max_length"), 32))),
+            dtmf_timeout=_non_negative_number(dtmf.get("inter_digit_timeout"), 0.0),
             noinput_timeout=_non_negative_number(
                 config.get("noinput_timeout_seconds"), DEFAULT_NOINPUT_TIMEOUT_SECONDS
             ),
@@ -377,11 +377,11 @@ class ExotelCallSession:
         logger.info("DTMF digit '%s' bot=%s call_sid=%s", digit, self.bot, self.call_sid)
         self._caller_active()
         if digit == self.dtmf_terminator:
-            self._spawn_turn(self._submit_dtmf())
+            self._flush_dtmf()
             return
         self._dtmf_buffer += digit
         if len(self._dtmf_buffer) >= self.dtmf_max_length:
-            self._spawn_turn(self._submit_dtmf())
+            self._flush_dtmf()
             return
         self._arm_dtmf_timer()
         self._arm_noinput()
@@ -393,11 +393,19 @@ class ExotelCallSession:
         self._turn_tasks.add(task)
         task.add_done_callback(self._turn_tasks.discard)
 
-    async def _submit_dtmf(self) -> None:
-        """Run the collected digits as one caller turn."""
+    def _flush_dtmf(self) -> None:
+        """Take the digits collected so far *now* and run them as one caller turn in the background.
+
+        The digits are taken here, not when the turn task starts: keys pressed in between belong to the next entry,
+        and would otherwise be merged into this one (leaving the next entry empty and dropped).
+        """
         digits = self._dtmf_buffer
         self._dtmf_buffer = ""
         self._cancel_dtmf_timer()
+        self._spawn_turn(self._submit_dtmf(digits))
+
+    async def _submit_dtmf(self, digits: str) -> None:
+        """Run ``digits`` as one caller turn; an empty entry just restarts the silence countdown."""
         if digits:
             await self._run_turn(digits)
         else:
@@ -417,7 +425,8 @@ class ExotelCallSession:
         """Submit the digits collected so far once the caller stops pressing keys."""
         try:
             await asyncio.sleep(self.dtmf_timeout)
-            await self._submit_dtmf()
+            self._dtmf_timer = None
+            self._flush_dtmf()
         except asyncio.CancelledError:  # pragma: no cover
             pass
 
