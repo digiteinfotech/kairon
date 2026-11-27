@@ -84,12 +84,12 @@ class TestExotelVoiceProvider:
 
     def test_validate_config_valid(self):
         p = self._provider()
-        p.validate_config({"api_key": "k", "api_token": "t", "account_sid": "s", "exophone": "e"})
+        p.validate_config({"api_key": "k", "api_token": "t", "account_sid": "s", "phone_number": "e"})
 
     def test_validate_config_missing_field_raises(self):
         p = self._provider()
         with pytest.raises(AppException, match="api_key"):
-            p.validate_config({"api_token": "t", "account_sid": "s", "exophone": "e"})
+            p.validate_config({"api_token": "t", "account_sid": "s", "phone_number": "e"})
 
     @pytest.mark.asyncio
     async def test_handle_call_status_logs_and_saves(self):
@@ -169,7 +169,7 @@ class TestSarvamSTT:
 
     def test_init_uses_model_from_config(self):
         from kairon.shared.voice.stt.sarvam import SarvamSTT
-        stt = SarvamSTT({"api_key": "k", "model": "saarika:v1"}, "hi-IN", 16000)
+        stt = SarvamSTT({"api_key": "k", "stt_model": "saarika:v1"}, "hi-IN", 16000)
         assert stt.model == "saarika:v1"
         assert stt.api_key == "k"
         assert stt.sample_rate == 16000
@@ -177,7 +177,7 @@ class TestSarvamSTT:
     def test_init_default_model(self):
         from kairon.shared.voice.stt.sarvam import SarvamSTT
         stt = SarvamSTT({"api_key": "k"}, "en-IN")
-        assert stt.model == SarvamSTT.DEFAULT_MODEL
+        assert stt.model == "saaras:v4"
 
     def test_push_before_open_raises(self):
         from kairon.shared.voice.stt.sarvam import SarvamSTT
@@ -212,7 +212,8 @@ class TestSarvamSTT:
             await stt.push(pcm)
             stt._ws.send.assert_awaited_once()
             msg = json.loads(stt._ws.send.call_args.args[0])
-            decoded = base64.b64decode(msg["audio"]["data"])
+            assert msg["event"] == "audio_input"
+            decoded = base64.b64decode(msg["audio"])
             assert decoded == pcm
 
         asyncio.get_event_loop().run_until_complete(_run())
@@ -271,6 +272,21 @@ class TestSarvamSTT:
         assert stt._receiver_task is not None
         stt._receiver_task.cancel()
 
+    @pytest.mark.asyncio
+    async def test_open_uses_realtime_endpoint_params_and_header(self):
+        from kairon.shared.voice.stt.sarvam import SarvamSTT
+        stt = SarvamSTT({"api_key": "mykey"}, "hi-IN", 8000)
+        fake_ws = MagicMock()
+        fake_ws.__aiter__ = MagicMock(return_value=iter([]))
+        with patch("websockets.connect", new_callable=AsyncMock, return_value=fake_ws) as conn:
+            await stt.open()
+        url = conn.call_args.args[0]
+        assert url.startswith("wss://api.sarvam.ai/speech-to-text-realtime/ws?")
+        for part in ("language_code=hi-IN", "model=saaras:v4", "sample_rate=8000", "encoding=linear16"):
+            assert part in url
+        assert conn.call_args.kwargs["extra_headers"] == {"API-SUBSCRIPTION-KEY": "mykey"}
+        stt._receiver_task.cancel()
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # SarvamTTS
@@ -285,10 +301,10 @@ class TestSarvamTTS:
 
     def test_init_resolves_fields(self):
         from kairon.shared.voice.tts.sarvam import SarvamTTS
-        tts = SarvamTTS({"api_key": "k", "speaker": "arjun", "tts_model": "bulbul:v1"},
-                        voice="meera", language="hi-IN", sample_rate=16000)
+        tts = SarvamTTS({"api_key": "k", "tts_model": "bulbul:v1"},
+                        voice="arjun", language="hi-IN", sample_rate=16000)
         assert tts.api_key == "k"
-        assert tts.speaker == "arjun"  # config takes priority over voice
+        assert tts.speaker == "arjun"
         assert tts.model == "bulbul:v1"
         assert tts.sample_rate == 16000
         assert tts.language == "hi-IN"
@@ -301,7 +317,7 @@ class TestSarvamTTS:
     def test_init_default_speaker(self):
         from kairon.shared.voice.tts.sarvam import SarvamTTS
         tts = SarvamTTS({"api_key": "k"})
-        assert tts.speaker == SarvamTTS.DEFAULT_SPEAKER
+        assert tts.speaker == "shubh"
 
     @pytest.mark.asyncio
     async def test_synthesize_empty_text_yields_nothing(self):
@@ -643,7 +659,7 @@ class TestExotelStreamHandler:
         ]))
         h.user = MagicMock(account=1)
 
-        mock_session = MagicMock()
+        mock_session = MagicMock(closed=False)
         mock_session.start = AsyncMock()
         mock_session.on_message = AsyncMock()
         mock_session.close = AsyncMock()
@@ -712,16 +728,17 @@ class TestExotelStreamHandlerClosures:
     def test_tts_builder_closure_calls_factory(self):
         h = self._handler()
         mock_cls = MagicMock(return_value=MagicMock())
-        resolved = {"polly": {"metadata": {"aws_access_key_id": "A"}, "secrets": {"aws_secret_access_key": "S"}}}
+        resolved = {"polly": {"metadata": {"aws_access_key_id": "A", "voice": "Kajal"},
+                              "secrets": {"aws_secret_access_key": "S"}}}
         with patch(
             "kairon.chat.handlers.channels.clients.voice.exotel_stream.TTSFactory.provider_metadata",
-            return_value={"engine": "neural", "default_voice": "Kajal"},
+            return_value={"engine": "neural"},
         ):
             with patch(
                 "kairon.chat.handlers.channels.clients.voice.exotel_stream.TTSFactory.get",
                 return_value=mock_cls,
             ):
-                build = h._tts_builder("polly", "en-IN", 8000, None, resolved)
+                build = h._tts_builder("polly", "en-IN", 8000, resolved)
                 instance = build()
         mock_cls.assert_called_once()
         kwargs = mock_cls.call_args.kwargs

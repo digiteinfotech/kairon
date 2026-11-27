@@ -122,6 +122,17 @@ notifications:
 voice:
   exotel:
     subdomain: ${EXOTEL_DEFAULT_SUBDOMAIN:"api.exotel.com"}
+  stt:
+    sarvam:
+      endpoint: ${VOICE_STT_SARVAM_ENDPOINT:"wss://api.sarvam.ai/speech-to-text-realtime/ws"}
+      model: ${VOICE_STT_SARVAM_MODEL:"saaras:v4"}
+  tts:
+    sarvam:
+      endpoint: ${VOICE_TTS_SARVAM_ENDPOINT:"https://api.sarvam.ai/text-to-speech"}
+      model: ${VOICE_TTS_SARVAM_MODEL:"bulbul:v3"}
+      speaker: ${VOICE_TTS_SARVAM_SPEAKER:"shubh"}
+    polly:
+      speaker: ${VOICE_TTS_POLLY_VOICE:"Kajal"}
 
 events:
   server_url: ${EVENT_SERVER_ENDPOINT:"http://localhost:5001"}

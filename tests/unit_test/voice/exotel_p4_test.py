@@ -12,24 +12,22 @@ class TestExotelOutboundClient:
     def _client(self):
         return ExotelOutboundClient.from_config({
             "account_sid": "AC1", "api_key": "K1", "api_token": "T1",
-            "subdomain": "api.in.exotel.com", "exophone": "08047000000",
+            "subdomain": "api.in.exotel.com", "phone_number": "08047000000",
         })
 
     def test_from_config_maps_fields(self):
         c = self._client()
         assert c.api_key == "K1" and c.api_token == "T1"
-        assert c.subdomain == "api.in.exotel.com" and c.exophone == "08047000000"
+        assert c.subdomain == "api.in.exotel.com" and c.from_number == "08047000000"
 
     def test_defaults_fall_back(self):
         c = ExotelOutboundClient(account_sid="ACX", auth_token="TX", from_number="0800")
         assert c.api_key == "ACX" and c.api_token == "TX"
-        assert c.exophone == "0800" and c.subdomain == "api.exotel.com"
+        assert c.from_number == "0800" and c.subdomain == "api.exotel.com"
 
     def test_connect_url_and_flow_url(self):
         c = self._client()
-        assert c._connect_url() == (
-            "https://K1:T1@api.in.exotel.com/v1/Accounts/AC1/Calls/connect.json"
-        )
+        assert c._connect_url() == "https://api.in.exotel.com/v1/Accounts/AC1/Calls/connect.json"
         assert c.flow_app_url("999") == "http://my.exotel.com/AC1/exoml/start_voice/999"
 
     def test_parse_call_sid_shapes(self):
@@ -47,7 +45,8 @@ class TestExotelOutboundClient:
             sid = c.initiate_call("+919999", "http://flow", status_callback_url="http://cb")
         assert sid == "CALL123"
         args, kwargs = mock_post.call_args
-        assert args[0] == "https://K1:T1@api.in.exotel.com/v1/Accounts/AC1/Calls/connect.json"
+        assert args[0] == "https://api.in.exotel.com/v1/Accounts/AC1/Calls/connect.json"
+        assert kwargs["auth"] == ("K1", "T1")
         assert kwargs["data"] == {
             "From": "+919999", "CallerId": "08047000000", "Url": "http://flow",
             "StatusCallback": "http://cb", "StatusCallbackMethod": "POST",
@@ -79,6 +78,35 @@ class TestExotelOutboundClient:
         with patch("requests.post", side_effect=ConnectionError("down")):
             with pytest.raises(AppException, match="Exotel outbound call failed"):
                 c.initiate_call("+91", "http://flow")
+
+    def test_url_never_contains_credentials(self):
+        c = self._client()
+        assert "K1" not in c._connect_url() and "T1" not in c._connect_url() and "@" not in c._connect_url()
+        assert "K1" not in c.flow_app_url("1") and "T1" not in c.flow_app_url("1")
+
+    def test_http_error_message_has_status_but_no_credentials_or_url(self):
+        import requests
+        c = self._client()
+        resp = MagicMock(status_code=401, reason="Unauthorized")
+        err = requests.exceptions.HTTPError("401 Client Error: Unauthorized for url: https://K1:T1@api/x", response=resp)
+        bad = MagicMock()
+        bad.raise_for_status.side_effect = err
+        with patch("requests.post", return_value=bad):
+            with pytest.raises(AppException) as ei:
+                c.initiate_call("+91", "http://flow")
+        msg = str(ei.value)
+        assert "HTTP 401 Unauthorized" in msg
+        assert "K1" not in msg and "T1" not in msg and "http" not in msg
+        assert ei.value.__cause__ is None
+
+    def test_other_errors_are_scrubbed_of_credentials(self):
+        c = self._client()
+        with patch("requests.post", side_effect=RuntimeError("failed calling https://K1:T1@host with key K1 token T1")):
+            with pytest.raises(AppException) as ei:
+                c.initiate_call("+91", "http://flow")
+        msg = str(ei.value)
+        assert "K1" not in msg and "T1" not in msg and "***" in msg
+        assert ei.value.__cause__ is None
 
 
 class TestVoiceOutboundFactory:

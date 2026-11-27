@@ -15,9 +15,12 @@ from kairon.shared.data.constant import STATUSES
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes, KaironSystemSlots
 from kairon.shared.request_context import get_request_id
+from kairon.shared.voice.utils import VoiceUtils
 from kairon.shared.voice.factory import VoiceOutboundFactory
 
 logger = logging.getLogger(__name__)
+
+ALREADY_ON_CALL_RESPONSE = "You are already on a call with me, so I can't place another one."
 
 
 class ActionVoiceCall(ActionsBase):
@@ -32,6 +35,7 @@ class ActionVoiceCall(ActionsBase):
         self.name = name
 
     def retrieve_config(self):
+        """Return the stored VoiceCallAction config, or raise ActionFailure if there is none for this bot/name."""
         try:
             return VoiceCallAction.objects(
                 bot=self.bot, name=self.name, status=True
@@ -39,10 +43,33 @@ class ActionVoiceCall(ActionsBase):
         except DoesNotExist:
             raise ActionFailure("No VoiceCallAction found for given action and bot")
 
+    def _save_log(self, tracker: Tracker, action_call: dict, status, exception, bot_response):
+        """Persist this execution to ``ActionServerLogs``."""
+        trigger_info_obj = TriggerInfo(**(action_call.get('trigger_info') or {}))
+        ActionServerLogs(
+            type=ActionType.voice_call_action.value,
+            intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
+            action=self.name,
+            sender=tracker.sender_id,
+            bot=tracker.get_slot("bot"),
+            exception=exception,
+            bot_response=bot_response,
+            status=status,
+            user_msg=tracker.latest_message.get('text'),
+            trigger_info=trigger_info_obj,
+            request_id=get_request_id(),
+        ).save()
+
     async def execute(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: dict, **kwargs):
         action_call = kwargs.get('action_call', {})
         status = STATUSES.SUCCESS.value
         exception = None
+
+        if VoiceUtils.is_voice_conversation(tracker):
+            bot_response = ALREADY_ON_CALL_RESPONSE
+            dispatcher.utter_message(bot_response)
+            self._save_log(tracker, action_call, status, exception, bot_response)
+            return {KaironSystemSlots.kairon_action_response.value: bot_response}
 
         action_config = self.retrieve_config()
         bot_response = action_config.get("response") or "I'm placing a call to you now."
@@ -57,11 +84,6 @@ class ActionVoiceCall(ActionsBase):
                             channel_config.get("telephony_provider", "twilio")
 
             client_cls = VoiceOutboundFactory.get_client(provider_name)
-            client = client_cls(
-                account_sid=channel_config["account_sid"],
-                auth_token=channel_config["auth_token"],
-                from_number=channel_config["phone_number"],
-            )
 
             ph_cfg = action_config["to_phone_number"]
             if ph_cfg.get("parameter_type") == ActionParameterType.slot.value:
@@ -72,14 +94,16 @@ class ActionVoiceCall(ActionsBase):
             if not to_phone:
                 raise ActionFailure("to_phone_number is empty or slot not set")
 
-            call_url = channel_config.get("call_url", "")
-            status_url = channel_config.get("status_url", "")
-            call_sid = client.initiate_call(to_phone, call_url, status_url)
+            call_sid = client_cls.from_config(channel_config).place_call(to_phone, channel_config)
 
             ChannelLogs(
                 type=ChannelTypes.VOICE.value,
                 status="initiated",
-                data={"to": to_phone, "call_sid": call_sid},
+                data={
+                    "to": to_phone, "call_sid": call_sid,
+                    "origin_sender_id": tracker.sender_id,
+                    "slots": VoiceUtils.select_carry_over_slots(tracker.current_slot_values()),
+                },
                 message_id=call_sid or "unknown",
                 bot=self.bot,
                 user=channel_config.get("user", "system"),
@@ -97,19 +121,6 @@ class ActionVoiceCall(ActionsBase):
         finally:
             if dispatch_bot_response:
                 dispatcher.utter_message(bot_response)
-            trigger_info_obj = TriggerInfo(**(action_call.get('trigger_info') or {}))
-            ActionServerLogs(
-                type=ActionType.voice_call_action.value,
-                intent=tracker.get_intent_of_latest_message(skip_fallback_intent=False),
-                action=self.name,
-                sender=tracker.sender_id,
-                bot=tracker.get_slot("bot"),
-                exception=exception,
-                bot_response=bot_response,
-                status=status,
-                user_msg=tracker.latest_message.get('text'),
-                trigger_info=trigger_info_obj,
-                request_id=get_request_id(),
-            ).save()
+            self._save_log(tracker, action_call, status, exception, bot_response)
 
         return {KaironSystemSlots.kairon_action_response.value: bot_response}

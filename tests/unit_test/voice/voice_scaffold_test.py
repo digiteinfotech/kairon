@@ -39,7 +39,7 @@ class TestVoiceProviderMetadata:
         assert "exotel" in voice_channels
         assert "twilio" in voice_channels
         assert set(voice_channels["exotel"]["required_fields"]) == {
-            "api_key", "api_token", "account_sid", "exophone",
+            "api_key", "api_token", "account_sid", "phone_number",
         }
 
     def test_get_channels_includes_voice(self):
@@ -59,7 +59,7 @@ class TestExotelChannelValidation:
             "api_token": "tok-123",
             "account_sid": "acc-sid",
             "subdomain": "api.exotel.com",
-            "exophone": "08047000000",
+            "phone_number": "08047000000",
         }
 
     def test_secret_fields_encrypted_non_secret_plaintext(self):
@@ -71,12 +71,12 @@ class TestExotelChannelValidation:
         # account_sid is a secret field — encrypted
         assert cfg["account_sid"] != "acc-sid"
         # non-secret required fields stay as-is
-        assert cfg["exophone"] == "08047000000"
+        assert cfg["phone_number"] == "08047000000"
         assert cfg["telephony_provider"] == "exotel"
 
     def test_missing_required_field_raises(self):
         cfg = self._cfg()
-        cfg.pop("exophone")
+        cfg.pop("phone_number")
         with pytest.raises(AppException):
             Utility.validate_voice_provider(cfg, AppException, encrypt=False)
 

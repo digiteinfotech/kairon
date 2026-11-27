@@ -194,7 +194,7 @@ class ChatDataProcessor:
     def __prepare_voice_config(config: dict, mask_characters: bool):
         provider = config['config'].get('telephony_provider', 'twilio')
         channel_params = Utility.system_metadata.get('voice_channels', {}).get(provider, {})
-        _encrypted_fields = {"account_sid", "auth_token"}
+        _encrypted_fields = set(channel_params.get('secret_fields', ["account_sid", "auth_token"]))
         for field in channel_params.get('required_fields', []):
             if field in _encrypted_fields and field in config['config']:
                 config['config'][field] = Utility.decrypt_message(config['config'][field])

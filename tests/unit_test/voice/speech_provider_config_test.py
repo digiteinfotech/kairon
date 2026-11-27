@@ -283,3 +283,56 @@ class TestSpeechProviderConfigDecryptConfig:
         from kairon.shared.voice.processor import SpeechProviderConfigProcessor
 
         assert SpeechProviderConfigProcessor.decrypt_config({}, ["api_key"]) == {}
+
+
+class TestSpeechProviderConfigIndex:
+    """The (provider, scope, bot_id) index must be unique so it matches the DB's existing index."""
+
+    @staticmethod
+    def _make(provider, scope, bot_id):
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        doc = SpeechProviderConfig(provider=provider, scope=scope, bot_id=bot_id)
+        doc.user = "u"
+        return doc
+
+    def test_index_spec_is_unique(self):
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        specs = SpeechProviderConfig._meta["index_specs"]
+        match = [s for s in specs if s["fields"] == [("provider", 1), ("scope", 1), ("bot_id", 1)]]
+        assert len(match) == 1 and match[0].get("unique") is True
+
+    def test_ensure_indexes_creates_unique_index_without_conflict(self):
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        SpeechProviderConfig.drop_collection()
+        SpeechProviderConfig.ensure_indexes()
+        info = SpeechProviderConfig._get_collection().index_information()
+        idx = info["provider_1_scope_1_bot_id_1"]
+        assert idx["unique"] is True
+        SpeechProviderConfig.ensure_indexes()
+
+    def test_existing_unique_index_in_db_does_not_conflict(self):
+        """Regression: a pre-existing unique index (as in production) used to raise IndexKeySpecsConflict."""
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        col = SpeechProviderConfig._get_collection()
+        col.drop_indexes()
+        col.create_index([("provider", 1), ("scope", 1), ("bot_id", 1)], unique=True)
+        SpeechProviderConfig.ensure_indexes()
+
+    def test_duplicate_provider_scope_bot_rejected(self):
+        from mongoengine.errors import NotUniqueError
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        SpeechProviderConfig.drop_collection()
+        SpeechProviderConfig.ensure_indexes()
+        self._make("sarvam", "bot", "b1").save()
+        with pytest.raises(NotUniqueError):
+            self._make("sarvam", "bot", "b1").save()
+
+    def test_same_provider_allowed_for_other_bot_and_for_global(self):
+        from kairon.shared.voice.data_objects import SpeechProviderConfig
+        SpeechProviderConfig.drop_collection()
+        SpeechProviderConfig.ensure_indexes()
+        self._make("sarvam", "bot", "b1").save()
+        self._make("sarvam", "bot", "b2").save()
+        self._make("sarvam", "global", None).save()
+        assert SpeechProviderConfig.objects.count() == 3
+        SpeechProviderConfig.drop_collection()

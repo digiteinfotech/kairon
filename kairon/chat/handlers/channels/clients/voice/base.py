@@ -35,6 +35,14 @@ class VoiceProviderBase(ABC):
     def build_hangup_response(self, messages: List[str]) -> str:
         raise NotImplementedError
 
+    @classmethod
+    def normalize_config(cls, config: dict, error, registries: dict) -> None:
+        """Validate a channel config about to be saved and fill in the provider's defaults, in place.
+
+        :param error: exception class used to report an invalid value
+        :param registries: known STT/TTS providers keyed by config field (``stt_provider``, ``tts_provider``)
+        """
+
     def build_resolver_response(self, params: dict, bot: str, user: str) -> dict:
         raise NotImplementedError(f"{self.__class__.__name__} does not support dynamic resolver")
 

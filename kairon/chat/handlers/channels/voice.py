@@ -12,6 +12,8 @@ from kairon.shared.chat.data_objects import ChannelLogs
 from kairon.shared.chat.processor import ChatDataProcessor
 from kairon.shared.constants import ChannelTypes
 from kairon.shared.models import User
+from kairon.shared.voice.constants import CallStatus
+from kairon.shared.voice.utils import VoiceUtils
 
 logger = logging.getLogger(__name__)
 
@@ -241,6 +243,7 @@ class VoiceHandler(InputChannel, ChannelHandlerBase):
             type="voice", status="resolver", data=params,
             message_id=call_sid, bot=self.bot, user=self.user.get_user(),
         ).save()
+        VoiceUtils.update_call_status(self.bot, call_sid, CallStatus.ANSWERED.value, only_if_not_terminal=True)
         return payload
 
     async def handle_greeting_request(self) -> str:

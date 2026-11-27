@@ -269,6 +269,7 @@ class TestActionVoiceDisconnect:
         t.sender_id = "CA_test_sid"
         t.get_intent_of_latest_message.return_value = "end_call"
         t.latest_message = {"text": "goodbye"}
+        t.get_latest_input_channel.return_value = "voice"
         return t
 
     @pytest.fixture

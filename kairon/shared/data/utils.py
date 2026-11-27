@@ -415,15 +415,14 @@ class DataUtility:
         base = Utility.environment['model']['agent']['url']
         from kairon.chat.handlers.channels.clients.voice.factory import VoiceProviderFactory
         provider_cls = VoiceProviderFactory.get_provider(provider)
+        endpoints = {}
         if provider_cls.supports_dynamic_resolver():
-            return {
-                "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/resolver/{token}"),
-                "initializer_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/initializer/{token}"),
-            }
-        return {
-            "call_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}"),
-            "status_url": urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}"),
-        }
+            endpoints["call_url"] = urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/resolver/{token}")
+            endpoints["initializer_url"] = urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/initializer/{token}")
+        else:
+            endpoints["call_url"] = urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/{token}")
+        endpoints["status_url"] = urljoin(base, f"/api/bot/{bot}/channel/voice/{provider}/call/status/{token}")
+        return endpoints
 
     @staticmethod
     def get_integration_endpoint(integration_config: dict):

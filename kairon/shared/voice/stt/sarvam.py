@@ -17,9 +17,15 @@ import json
 import logging
 from typing import AsyncIterator, Optional
 
+try:
+    import audioop
+except ImportError:  # pragma: no cover
+    audioop = None
+
 from kairon.exceptions import AppException
 from kairon.shared.voice.stt.base import BaseSTT, Transcript
 from kairon.shared.voice.stt.factory import STTFactory
+from kairon.shared.voice.utils import VoiceUtils
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +33,8 @@ logger = logging.getLogger(__name__)
 class SarvamSTT(BaseSTT):
     """Streaming STT adapter backed by Sarvam's real-time WebSocket API."""
 
-    ENDPOINT = "wss://api.sarvam.ai/speech-to-text/ws"
-    DEFAULT_MODEL = "saarika:v2"
+    NATIVE_RATES = (8000, 16000)
+    FALLBACK_RATE = 16000
 
     def __init__(self, config: dict, language: str, sample_rate: int = 8000):
         """Validate api_key and set up internal queue and socket state."""
@@ -36,7 +42,15 @@ class SarvamSTT(BaseSTT):
         self.api_key = config.get("api_key")
         if not self.api_key:
             raise AppException("Sarvam STT requires 'api_key' in provider config")
-        self.model = config.get("model") or self.DEFAULT_MODEL
+        self.endpoint = config.get("stt_url") or VoiceUtils.provider_default("stt", "sarvam", "endpoint")
+        self.model = config.get("stt_model") or VoiceUtils.provider_default("stt", "sarvam", "model")
+        self.stream_rate = self.sample_rate if self.sample_rate in self.NATIVE_RATES else self.FALLBACK_RATE
+        if self.stream_rate != self.sample_rate and audioop is None:
+            raise AppException(
+                f"Sarvam STT cannot downsample {self.sample_rate} Hz audio on this Python version; "
+                f"use one of {list(self.NATIVE_RATES)} Hz"
+            )
+        self._resample_state = None
         self._ws = None
         self._queue: "asyncio.Queue" = asyncio.Queue()
         self._receiver_task: Optional[asyncio.Task] = None
@@ -51,11 +65,11 @@ class SarvamSTT(BaseSTT):
                 "`websockets` package is required for Sarvam streaming STT"
             ) from e
         url = (
-            f"{self.ENDPOINT}?model={self.model}"
-            f"&language-code={self.language}&sample-rate={self.sample_rate}"
+            f"{self.endpoint}?language_code={self.language}&model={self.model}"
+            f"&sample_rate={self.stream_rate}&encoding=linear16"
         )
         self._ws = await websockets.connect(
-            url, extra_headers={"api-subscription-key": self.api_key}
+            url, extra_headers={"API-SUBSCRIPTION-KEY": self.api_key}
         )
         self._receiver_task = asyncio.ensure_future(self._receive_loop())
 
@@ -65,14 +79,14 @@ class SarvamSTT(BaseSTT):
             raise AppException("SarvamSTT.push() called before open()")
         if not pcm:
             return
+        if self.stream_rate != self.sample_rate:
+            pcm, self._resample_state = audioop.ratecv(
+                pcm, 2, 1, self.sample_rate, self.stream_rate, self._resample_state
+            )
+            if not pcm:
+                return
         message = json.dumps(
-            {
-                "audio": {
-                    "data": base64.b64encode(pcm).decode("ascii"),
-                    "encoding": "audio/x-l16",
-                    "sample_rate": self.sample_rate,
-                }
-            }
+            {"event": "audio_input", "audio": base64.b64encode(pcm).decode("ascii")}
         )
         await self._ws.send(message)
 
@@ -99,13 +113,7 @@ class SarvamSTT(BaseSTT):
 
     @staticmethod
     def _parse_result(raw) -> Optional[Transcript]:
-        """Map a Sarvam WS message to a :class:`Transcript`.
-
-        Tolerant of the several field names Sarvam has used across versions:
-        text under ``transcript``/``text``, finality under ``is_final``/``final``
-        or a ``type`` of ``"final"``/``"transcript"``. Returns ``None`` for
-        keep-alive/non-transcript messages.
-        """
+        """Map a Sarvam WS message to a :class:`Transcript`; ``None`` for non-transcript messages."""
         if isinstance(raw, (bytes, bytearray)):
             raw = raw.decode("utf-8", errors="replace")
         try:
@@ -114,6 +122,24 @@ class SarvamSTT(BaseSTT):
             return None
         if not isinstance(data, dict):
             return None
+        event = str(data.get("event", "")).lower()
+        if event in ("transcript.partial", "transcript.final"):
+            return Transcript(
+                text=str(data.get("text") or ""),
+                is_final=event == "transcript.final",
+                confidence=None,
+            )
+        if event:
+            return None
+        return SarvamSTT._parse_legacy_result(data)
+
+    @staticmethod
+    def _parse_legacy_result(data: dict) -> Optional[Transcript]:
+        """Parse the older, event-less message shape.
+
+        Tolerant of the several field names Sarvam has used: text under ``transcript``/``text`` (also nested in
+        ``data``), finality under ``is_final``/``final`` or a ``type`` of ``"final"``/``"transcript"``.
+        """
         msg_type = str(data.get("type", "")).lower()
         if msg_type in ("error", "ready", "connected", "pong", "metadata"):
             return None
@@ -121,7 +147,7 @@ class SarvamSTT(BaseSTT):
         if text is None:
             text = data.get("text")
         if text is None:
-            inner = data.get("data") or {}
+            inner = data.get("data")
             if isinstance(inner, dict):
                 text = inner.get("transcript") or inner.get("text")
         if text is None:
@@ -131,8 +157,7 @@ class SarvamSTT(BaseSTT):
             is_final = data.get("final")
         if is_final is None:
             is_final = msg_type in ("final", "transcript")
-        confidence = data.get("confidence")
-        return Transcript(text=str(text), is_final=bool(is_final), confidence=confidence)
+        return Transcript(text=str(text), is_final=bool(is_final), confidence=data.get("confidence"))
 
     async def close(self) -> None:
         """Cancel the receive loop and close the WebSocket connection."""
