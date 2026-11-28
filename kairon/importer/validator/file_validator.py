@@ -18,7 +18,7 @@ from pykwalify.core import Core
 from ruamel import yaml
 
 from kairon.exceptions import AppException
-from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, \
+from kairon.shared.actions.data_objects import FormValidationAction, SlotSetAction, JiraAction, GoogleSearchAction, KeenableSearchAction, \
     ZendeskAction, EmailActionConfig, HttpActionConfig, PipedriveLeadsAction, PromptAction, RazorpayAction, \
     PyscriptActionConfig, DatabaseAction
 from kairon.shared.actions.models import ActionType, ActionParameterType, DbActionOperationType
@@ -585,6 +585,11 @@ class TrainingDataValidator(Validator):
                 is_data_invalid = True if errors else False
                 error_summary['google_search_actions'] = errors
                 component_count['google_search_actions'] = len(actions_list)
+            elif action_type == ActionType.keenable_search_action.value and actions_list:
+                errors = TrainingDataValidator.__validate_keenable_search_actions(actions_list)
+                is_data_invalid = True if errors else False
+                error_summary['keenable_search_actions'] = errors
+                component_count['keenable_search_actions'] = len(actions_list)
             elif action_type == ActionType.jira_action.value and actions_list:
                 errors = TrainingDataValidator.__validate_jira_actions(actions_list)
                 is_data_invalid = True if errors else False
@@ -854,6 +859,35 @@ class TrainingDataValidator(Validator):
         required_fields = {k for k, v in GoogleSearchAction._fields.items() if
                            v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
         for action in google_actions:
+            if isinstance(action, dict):
+                if len(required_fields.difference(set(action.keys()))) > 0:
+                    data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')
+                    continue
+                if action['name'] in actions_present:
+                    data_error.append(f'Duplicate action found: {action["name"]}')
+                try:
+                    if action.get("num_results"):
+                        int(action["num_results"])
+                except ValueError:
+                    data_error.append(f'int value required for num_results in action: {action["name"]}')
+                actions_present.add(action["name"])
+            else:
+                data_error.append('Invalid action configuration format. Dictionary expected.')
+
+        return data_error
+
+    @staticmethod
+    def __validate_keenable_search_actions(keenable_actions: list):
+        """
+        Validates Keenable search actions.
+        @param keenable_actions: Keenable search actions.
+        """
+        data_error = []
+        actions_present = set()
+
+        required_fields = {k for k, v in KeenableSearchAction._fields.items() if
+                           v.required and k not in {'bot', 'user', 'timestamp', 'status'}}
+        for action in keenable_actions:
             if isinstance(action, dict):
                 if len(required_fields.difference(set(action.keys()))) > 0:
                     data_error.append(f'Required fields {required_fields} not found: {action.get("name")}')

@@ -140,6 +140,9 @@ class MultilingualTranslator:
         if action_config.get(ActionType.google_search_action.value):
             action_config[ActionType.google_search_action.value] = translate_responses(
                 action_config[ActionType.google_search_action.value], ['failure_response'])
+        if action_config.get(ActionType.keenable_search_action.value):
+            action_config[ActionType.keenable_search_action.value] = translate_responses(
+                action_config[ActionType.keenable_search_action.value], ['failure_response'])
         if action_config.get(ActionType.form_validation_action.value):
             action_config[ActionType.form_validation_action.value] = translate_responses(
                 action_config[ActionType.form_validation_action.value], ['valid_response', 'invalid_response'])

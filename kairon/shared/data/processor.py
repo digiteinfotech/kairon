@@ -68,6 +68,7 @@ from kairon.shared.actions.data_objects import (
     FormValidationAction,
     EmailActionConfig,
     GoogleSearchAction,
+    KeenableSearchAction,
     JiraAction,
     ZendeskAction,
     PipedriveLeadsAction,
@@ -190,6 +191,7 @@ ACTION_TYPE_MODEL_MAP = {
     ActionType.form_validation_action.value: (FormValidationAction,         "name"),
     ActionType.email_action.value:           (EmailActionConfig,            "action_name"),
     ActionType.google_search_action.value:   (GoogleSearchAction,           "name"),
+    ActionType.keenable_search_action.value: (KeenableSearchAction,         "name"),
     ActionType.jira_action.value:            (JiraAction,                   "name"),
     ActionType.zendesk_action.value:         (ZendeskAction,                "name"),
     ActionType.pipedrive_leads_action.value: (PipedriveLeadsAction,         "name"),
@@ -301,6 +303,7 @@ class MongoProcessor:
             ActionType.slot_set_action.value: MongoProcessor.is_slot_in_slot_set_action_config,
             ActionType.email_action.value: MongoProcessor.is_slot_in_email_action_config,
             ActionType.google_search_action.value: MongoProcessor.is_slot_in_google_search_action_config,
+            ActionType.keenable_search_action.value: MongoProcessor.is_slot_in_keenable_search_action_config,
             ActionType.zendesk_action.value: MongoProcessor.is_slot_in_zendesk_action_config,
             ActionType.jira_action.value: MongoProcessor.is_slot_in_jira_action_config,
             ActionType.pipedrive_leads_action.value: MongoProcessor.is_slot_in_pipedrive_leads_action_config,
@@ -454,6 +457,13 @@ class MongoProcessor:
             return True
 
         return False
+
+    @staticmethod
+    def is_slot_in_keenable_search_action_config(config: dict, slot: Text):
+        if MongoProcessor.is_slot_in_google_search_action_config(config, slot):
+            return True
+
+        return MongoProcessor.is_slot_in_field(config.get("search_term") or {}, slot)
 
     @staticmethod
     def is_slot_in_slot_set_action_config(config: dict, slot: Text):
@@ -1951,6 +1961,11 @@ class MongoProcessor:
             ),
             StoryStepType.google_search_action.value: dict(
                 GoogleSearchAction.objects(bot=bot, status=True).values_list(
+                    "name", "id"
+                )
+            ),
+            StoryStepType.keenable_search_action.value: dict(
+                KeenableSearchAction.objects(bot=bot, status=True).values_list(
                     "name", "id"
                 )
             ),
@@ -3746,6 +3761,7 @@ class MongoProcessor:
         http_actions = self.list_http_action_names(bot)
         reset_slot_actions = set(SlotSetAction.objects(bot=bot, status=True).values_list('name'))
         google_search_actions = set(GoogleSearchAction.objects(bot=bot, status=True).values_list('name'))
+        keenable_search_actions = set(KeenableSearchAction.objects(bot=bot, status=True).values_list('name'))
         jira_actions = set(JiraAction.objects(bot=bot, status=True).values_list('name'))
         zendesk_actions = set(ZendeskAction.objects(bot=bot, status=True).values_list('name'))
         pipedrive_leads_actions = set(PipedriveLeadsAction.objects(bot=bot, status=True).values_list('name'))
@@ -3803,6 +3819,8 @@ class MongoProcessor:
                         step["type"] = StoryStepType.slot_set_action.value
                     elif event["name"] in google_search_actions:
                         step["type"] = StoryStepType.google_search_action.value
+                    elif event["name"] in keenable_search_actions:
+                        step["type"] = StoryStepType.keenable_search_action.value
                     elif event["name"] in jira_actions:
                         step["type"] = StoryStepType.jira_action.value
                     elif event["name"] in email_actions:
@@ -4780,6 +4798,103 @@ class MongoProcessor:
         action.timestamp = datetime.utcnow()
         action.save()
 
+    def add_keenable_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Add a new Keenable search action. Without an api_key, the keyless Keenable
+        public endpoint is used (only allowed when action.keenable.allow_keyless is on).
+
+        :param action_config: Keenable search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: doc id
+        """
+        if action_config.get("name") and Utility.special_match(action_config.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        Utility.is_valid_action_name(action_config.get("name"), bot, KeenableSearchAction)
+        if action_config.get("search_term"):
+            action_config["search_term"]['key'] = 'search_term'
+        action = (
+            KeenableSearchAction(
+                name=action_config["name"],
+                api_key=CustomActionRequestParameters(**action_config["api_key"]) if action_config.get("api_key") else None,
+                search_term=CustomActionRequestParameters(**action_config["search_term"]) if action_config.get("search_term") else None,
+                website=action_config.get("website"),
+                failure_response=action_config.get("failure_response"),
+                num_results=action_config.get("num_results"),
+                dispatch_response=action_config.get("dispatch_response", True),
+                set_slot=action_config.get("set_slot"),
+                bot=bot,
+                user=user,
+            )
+            .save()
+            .id.__str__()
+        )
+        self.add_action(
+            action_config["name"],
+            bot,
+            user,
+            action_type=ActionType.keenable_search_action.value,
+            raise_exception=False,
+        )
+        return action
+
+    def edit_keenable_search_action(self, action_config: dict, bot: Text, user: Text):
+        """
+        Update Keenable search action with new values.
+        :param action_config: Keenable search action configuration
+        :param bot: bot id
+        :param user: user id
+        :return: None
+        """
+        if action_config.get("name") and Utility.special_match(action_config.get("name")):
+            raise AppException("Invalid name! Only letters, numbers, and underscores (_) are allowed.")
+
+        if not Utility.is_exist(
+                KeenableSearchAction,
+                raise_error=False,
+                name=action_config.get("name"),
+                bot=bot,
+                status=True,
+        ):
+            raise AppException(
+                f'Keenable search action with name "{action_config.get("name")}" not found'
+            )
+        action = KeenableSearchAction.objects(
+            name=action_config.get("name"), bot=bot, status=True
+        ).get()
+        if action_config.get('search_term'):
+            action_config['search_term']['key'] = 'search_term'
+
+        action.api_key = CustomActionRequestParameters(**action_config["api_key"]) if action_config.get("api_key") else None
+        action.search_term = CustomActionRequestParameters(**action_config["search_term"]) if action_config.get("search_term") else None
+        action.website = action_config.get("website")
+        action.failure_response = action_config.get("failure_response")
+        action.num_results = action_config.get("num_results")
+        action.dispatch_response = action_config.get("dispatch_response", True)
+        action.set_slot = action_config.get("set_slot")
+        action.user = user
+        action.timestamp = datetime.utcnow()
+        action.save()
+
+    def list_keenable_search_actions(self, bot: Text, with_doc_id: bool = True):
+        """
+        List Keenable search actions
+        :param bot: bot id
+        :param with_doc_id: return document id along with action configuration if True
+        """
+        for action in KeenableSearchAction.objects(bot=bot, status=True):
+            action = action.to_mongo().to_dict()
+            if with_doc_id:
+                action["_id"] = action["_id"].__str__()
+            else:
+                action.pop("_id")
+            action.pop("user")
+            action.pop("bot")
+            action.pop("timestamp")
+            action.pop("status")
+            yield action
+
     def list_google_search_actions(self, bot: Text, with_doc_id: bool = True):
         """
         List google search actions
@@ -4996,6 +5111,7 @@ class MongoProcessor:
             if self.get_row_count(SlotMapping, bot, slot=slot_name, status=True) > 0:
                 raise AppException("Cannot delete slot without removing its mappings!")
             slot = Slots.objects(name__iexact=slot_name, bot=bot, status=True).get()
+            resolved_slot_name = getattr(slot, 'name', slot_name)
             forms_with_slot = Forms.objects(
                 bot=bot, status=True, required_slots__in=[slot_name]
             )
@@ -5004,6 +5120,18 @@ class MongoProcessor:
             )
             web_search_action_with_slot = WebSearchAction.objects(
                 bot=bot, status=True, set_slot=slot_name
+            )
+            keenable_search_action_with_slot = KeenableSearchAction.objects(
+                Q(set_slot__iexact=resolved_slot_name)
+                | (
+                    Q(search_term__parameter_type=ActionParameterType.slot.value)
+                    & Q(search_term__value__iexact=resolved_slot_name)
+                )
+                | (
+                    Q(api_key__parameter_type=ActionParameterType.slot.value)
+                    & Q(api_key__value__iexact=resolved_slot_name)
+                ),
+                bot=bot, status=True,
             )
             stories = Stories.objects(
                 bot=bot,
@@ -5032,6 +5160,10 @@ class MongoProcessor:
             elif len(web_search_action_with_slot) > 0:
                 raise AppException(
                     f'Slot is attached to action: {[action["name"] for action in web_search_action_with_slot]}'
+                )
+            elif len(keenable_search_action_with_slot) > 0:
+                raise AppException(
+                    f'Slot is attached to action: {[action["name"] for action in keenable_search_action_with_slot]}'
                 )
             elif len(stories) > 0:
                 raise AppException(
@@ -5275,6 +5407,7 @@ class MongoProcessor:
             ActionType.form_validation_action.value: FormValidationAction,
             ActionType.slot_set_action.value: SlotSetAction,
             ActionType.google_search_action.value: GoogleSearchAction,
+            ActionType.keenable_search_action.value: KeenableSearchAction,
             ActionType.pipedrive_leads_action.value: PipedriveLeadsAction,
             ActionType.prompt_action.value: PromptAction,
             ActionType.web_search_action.value: WebSearchAction,
@@ -5316,6 +5449,7 @@ class MongoProcessor:
         action_config.update(self.load_form_validation_action(bot))
         action_config.update(self.load_slot_set_action(bot))
         action_config.update(self.load_google_search_action(bot))
+        action_config.update(self.load_keenable_search_action(bot))
         action_config.update(self.load_pipedrive_leads_action(bot))
         action_config.update(self.load_two_stage_fallback_action_config(bot))
         action_config.update(self.load_prompt_action(bot))
@@ -5399,6 +5533,18 @@ class MongoProcessor:
         return {
             ActionType.google_search_action.value: list(
                 self.list_google_search_actions(bot, False)
+            )
+        }
+
+    def load_keenable_search_action(self, bot: Text):
+        """
+        Loads Keenable search actions from the database
+        :param bot: bot id
+        :return: dict
+        """
+        return {
+            ActionType.keenable_search_action.value: list(
+                self.list_keenable_search_actions(bot, False)
             )
         }
 
@@ -7890,6 +8036,21 @@ class MongoProcessor:
             ).values_list("name")
         )
 
+        keenable_action = list(
+            KeenableSearchAction.objects(
+                (
+                        Q(api_key__parameter_type=ActionParameterType.key_vault.value)
+                        & Q(api_key__value=key)
+                )
+                | (
+                        Q(search_term__parameter_type=ActionParameterType.key_vault.value)
+                        & Q(search_term__value=key)
+                ),
+                bot=bot,
+                status=True,
+            ).values_list("name")
+        )
+
         action_list = []
         for action_class in [JiraAction, ZendeskAction, PipedriveLeadsAction]:
             attached_action = list(
@@ -7962,6 +8123,7 @@ class MongoProcessor:
                 http_action
                 + email_action
                 + google_action
+                + keenable_action
                 + action_list
                 + hubspot_action
                 + razorpay_actions

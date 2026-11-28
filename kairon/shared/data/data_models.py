@@ -21,7 +21,7 @@ from kairon.shared.data.constant import (
     ACTIVITY_STATUS,
     INTEGRATION_STATUS,
     FALLBACK_MESSAGE,
-    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes
+    DEFAULT_NLU_FALLBACK_RESPONSE, RE_ALPHA_NUM, ExcludedLLMTypes, KEENABLE_API_KEY_REQUIRED
 )
 from kairon.shared.actions.models import (
     ActionParameterType,
@@ -921,6 +921,35 @@ class GoogleSearchActionRequest(BaseModel):
     num_results: int = 1
     dispatch_response: bool = True
     set_slot: str = None
+
+    @validator("num_results")
+    def validate_num_results(cls, v, values, **kwargs):
+        if not v or v < 1:
+            raise ValueError("num_results must be greater than or equal to 1!")
+        return v
+
+
+class KeenableSearchActionRequest(BaseModel):
+    name: constr(to_lower=True, strip_whitespace=True)
+    api_key: CustomActionParameter = None
+    search_term: CustomActionParameter = None
+    website: str = None
+    failure_response: str = "I have failed to process your request."
+    num_results: int = 1
+    dispatch_response: bool = True
+    set_slot: str = None
+
+    @validator("api_key", always=True)
+    def validate_api_key(cls, v, values, **kwargs):
+        if not (Utility.environment['action'].get('keenable') or {}).get('allow_keyless'):
+            literal_empty = (
+                v is not None
+                and v.parameter_type == ActionParameterType.value
+                and Utility.check_empty_string(v.value)
+            )
+            if not v or literal_empty:
+                raise ValueError(KEENABLE_API_KEY_REQUIRED)
+        return v
 
     @validator("num_results")
     def validate_num_results(cls, v, values, **kwargs):

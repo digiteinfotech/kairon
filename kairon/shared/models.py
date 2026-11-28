@@ -16,6 +16,7 @@ class StoryStepType(str, Enum):
     slot_set_action = "SLOT_SET_ACTION"
     form_action = "FORM_ACTION"
     google_search_action = "GOOGLE_SEARCH_ACTION"
+    keenable_search_action = "KEENABLE_SEARCH_ACTION"
     email_action = "EMAIL_ACTION"
     jira_action = "JIRA_ACTION"
     zendesk_action = "ZENDESK_ACTION"

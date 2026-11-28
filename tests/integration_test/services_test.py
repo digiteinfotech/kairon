@@ -19725,6 +19725,7 @@ def test_get_data_importer_logs():
                                                      {'type': 'form_validation_actions', 'count': 0, 'data': []},
                                                      {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                                      {'type': 'google_search_actions', 'count': 0, 'data': []},
+                                                     {'type': 'keenable_search_actions', 'count': 0, 'data': []},
                                                      {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                      {'type': 'prompt_actions', 'count': 0, 'data': []},
                                                      {'type': 'web_search_actions', 'count': 0, 'data': []},
@@ -19782,6 +19783,7 @@ def test_get_data_importer_logs():
                                                     {'type': 'form_validation_actions', 'count': 1, 'data': []},
                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                                     {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                                    {'type': 'keenable_search_actions', 'count': 0, 'data': []},
                                                     {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                     {'type': 'prompt_actions', 'count': 0, 'data': []},
                                                     {'type': 'web_search_actions', 'count': 0, 'data': []},
@@ -21004,6 +21006,7 @@ def test_add_story_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -21027,7 +21030,7 @@ def test_add_story_invalid_event_type():
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -21667,7 +21670,7 @@ def test_add_multiflow_story_invalid_event_type():
             "loc": ["body", "steps", 0, "step", "type"],
             "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', "
                    "'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', "
-                   "'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
+                   "'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', "
                    "'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', "
                    "'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', "
                    "'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
@@ -21684,6 +21687,7 @@ def test_add_multiflow_story_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -21783,6 +21787,7 @@ def test_update_story_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -21806,7 +21811,7 @@ def test_update_story_invalid_event_type():
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -22268,7 +22273,7 @@ def test_update_multiflow_story_invalid_event_type():
             "loc": ["body", "steps", 0, "step", "type"],
             "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', "
                    "'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', "
-                   "'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
+                   "'GOOGLE_SEARCH_ACTION', 'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', "
                    "'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', "
                    "'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', "
                    "'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
@@ -22285,6 +22290,7 @@ def test_update_multiflow_story_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -27740,7 +27746,7 @@ def test_list_actions():
                                              'utter_goodbye', 'utter_iamabot', 'utter_default',
                                              'utter_please_rephrase'],
                               'slot_set_action': [], 'form_validation_action': [], 'email_action': [],
-                              'google_search_action': [],
+                              'google_search_action': [], 'keenable_search_action': [],
                               'jira_action': [], 'zendesk_action': [], 'pipedrive_leads_action': [],
                               'hubspot_forms_action': [],
                               'two_stage_fallback': [], 'kairon_bot_response': [], 'razorpay_action': [],
@@ -28324,6 +28330,7 @@ def test_add_rule_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -28347,7 +28354,7 @@ def test_add_rule_invalid_event_type():
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -28444,6 +28451,7 @@ def test_update_rule_invalid_event_type():
                     "SLOT_SET_ACTION",
                     "FORM_ACTION",
                     "GOOGLE_SEARCH_ACTION",
+                    "KEENABLE_SEARCH_ACTION",
                     "EMAIL_ACTION",
                     "JIRA_ACTION",
                     "ZENDESK_ACTION",
@@ -28467,7 +28475,7 @@ def test_update_rule_invalid_event_type():
                 ]
             },
             "loc": ["body", "steps", 0, "type"],
-            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
+            "msg": "value is not a valid enumeration member; permitted: 'INTENT', 'SLOT', 'FORM_START', 'FORM_END', 'BOT', 'HTTP_ACTION', 'ACTION', 'SLOT_SET_ACTION', 'FORM_ACTION', 'GOOGLE_SEARCH_ACTION', 'KEENABLE_SEARCH_ACTION', 'EMAIL_ACTION', 'JIRA_ACTION', 'ZENDESK_ACTION', 'PIPEDRIVE_LEADS_ACTION', 'HUBSPOT_FORMS_ACTION', 'RAZORPAY_ACTION', 'TWO_STAGE_FALLBACK_ACTION', 'PYSCRIPT_ACTION', 'PROMPT_ACTION', 'DATABASE_ACTION', 'WEB_SEARCH_ACTION', 'LIVE_AGENT_ACTION', 'STOP_FLOW_ACTION', 'CALLBACK_ACTION', 'SCHEDULE_ACTION', 'PARALLEL_ACTION', 'VOICE_CALL_ACTION', 'KAIRON_VOICE_DISCONNECT', 'STORE_PAGE_ACTION', 'AGENT_ACTION'",
             "type": "type_error.enum",
         }
     ]
@@ -28753,6 +28761,7 @@ def test_upload_actions_and_config():
                                                     {'type': 'form_validation_actions', 'count': 1, 'data': []},
                                                     {'type': 'slot_set_actions', 'count': 0, 'data': []},
                                                     {'type': 'google_search_actions', 'count': 1, 'data': []},
+                                                    {'type': 'keenable_search_actions', 'count': 0, 'data': []},
                                                     {'type': 'pipedrive_leads_actions', 'count': 0, 'data': []},
                                                     {'type': 'prompt_actions', 'count': 0, 'data': []},
                                                     {'type': 'web_search_actions', 'count': 0, 'data': []},
@@ -34606,6 +34615,7 @@ def test_add_bot_with_template_name(monkeypatch):
             "form_validation_action": [],
             "email_action": [],
             "google_search_action": [],
+            "keenable_search_action": [],
             "jira_action": [],
             "zendesk_action": [],
             "pipedrive_leads_action": [],
