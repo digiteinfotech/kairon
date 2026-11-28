@@ -1,0 +1,113 @@
+from typing import List, Dict, Any
+from loguru import logger
+from kairon.exceptions import AppException
+from kairon.shared.utils import Utility
+from kairon.crm.services.provisioning_models import ProvisioningPlan
+
+
+class FeatureAppResolver:
+    """
+    Resolver that maps user-selected features (e.g. 'crm', 'hr', 'selling')
+    to a concrete ProvisioningPlan based on metadata/provisioning_matrix.yml.
+    """
+
+    _matrix_cache: Dict[str, Any] = None
+
+    @classmethod
+    def load_matrix(cls) -> Dict[str, Any]:
+        """The matrix lives in metadata/provisioning_matrix.yml and is merged into `Utility.system_metadata` by
+        `Utility.load_system_metadata()` with the other metadata files (roles, integrations, ...)."""
+        if cls._matrix_cache is not None:
+            return cls._matrix_cache
+
+        matrix = Utility.system_metadata.get("provisioning_matrix")
+        if not matrix:
+            Utility.load_system_metadata()
+            matrix = Utility.system_metadata.get("provisioning_matrix")
+        if not matrix:
+            raise AppException("Provisioning matrix configuration not found in metadata/provisioning_matrix.yml")
+        cls._matrix_cache = matrix
+        return cls._matrix_cache
+
+    @staticmethod
+    def _append_unique(target: List[str], items) -> None:
+        """Appends the items not already in `target`, keeping their order."""
+        for item in items:
+            if item not in target:
+                target.append(item)
+
+    @classmethod
+    def resolve(cls, selected_features: List[str]) -> ProvisioningPlan:
+        """
+        Resolves a list of requested feature keys into a single ProvisioningPlan.
+
+        Rules:
+        1. If no features specified, defaults to Tier 1 'crm'.
+        2. If any requested feature requires Tier 2 (e.g., HR, Selling, Accounts), plan tier becomes 2.
+        3. Apps and dependencies are deduplicated while preserving order.
+        """
+        matrix = cls.load_matrix()
+
+        if not selected_features:
+            selected_features = ["crm"]
+
+        resolved_apps: List[str] = []
+        resolved_roles: List[str] = []
+        resolved_deps: List[str] = ["frappe"]
+        max_tier = 1
+        upgrade_supported = True
+        primary_home_page = None
+        strategy_key = "crm"
+
+        for feature in selected_features:
+            key = feature.lower().strip()
+            if key not in matrix:
+                # BUSINESS_MODULE_CATALOG (kairon/crm/constants.py) advertises more
+                # modules (Buying, Manufacturing, Projects, Assets, Support, Quality,
+                # Payroll, Maintenance) than provisioning_matrix.yml currently maps.
+                # Silently ignoring an unmapped selection used to fall through to the
+                # "if not resolved_apps: resolved_apps = ['crm']" default below --
+                # a tenant selecting only unmapped modules got a Tier 1 CRM-only site
+                # with none of the ERPNext functionality they actually asked for, with
+                # only a log line (never surfaced to the caller) as evidence. Fail
+                # loudly instead so the gap is visible at request time, not discovered
+                # by an admin days later.
+                raise AppException(
+                    f"Selected feature '{feature}' has no provisioning_matrix.yml entry. "
+                    f"Available: {', '.join(sorted(matrix.keys()))}."
+                )
+
+            config = matrix[key]
+            tier = config.get("tier", 1)
+            if tier > max_tier:
+                max_tier = tier
+                strategy_key = "erpnext_suite"
+
+            if not config.get("upgrade_supported", True):
+                upgrade_supported = False
+
+            if not primary_home_page:
+                primary_home_page = config.get("home_page")
+
+            cls._append_unique(resolved_apps, config.get("required_apps", []))
+            cls._append_unique(resolved_roles, config.get("default_roles", []))
+            cls._append_unique(resolved_deps, config.get("dependencies", []))
+
+        if not resolved_apps:
+            resolved_apps = ["crm"]
+
+        if not primary_home_page:
+            primary_home_page = "crm" if max_tier == 1 else "workspace/CRM"
+
+        plan = ProvisioningPlan(
+            strategy_key=strategy_key if max_tier == 2 else (resolved_apps[0] if resolved_apps else "crm"),
+            tier=max_tier,
+            apps=resolved_apps,
+            home_page=primary_home_page,
+            default_roles=resolved_roles,
+            dependencies=resolved_deps,
+            upgrade_supported=upgrade_supported
+        )
+
+        logger.info(f"[FeatureAppResolver] Resolved plan for features {selected_features}: {plan}")
+        return plan
